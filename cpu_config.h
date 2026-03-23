@@ -1,0 +1,1 @@
+`define reset_pc 32'h1C000000
