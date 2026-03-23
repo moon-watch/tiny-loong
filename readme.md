@@ -51,10 +51,10 @@ endcase
 ```
 流水线间使用ready_go，allow_in握手协议，其由流水线状态生成，典型生成逻辑如下（译码级）：
 ```
-assign stall_now = any_excp | id_flush;
-assign id_ready_go = is_hold || (is_fresh && (any_excp || src_ok));
-assign id_allowin = (is_expired &&  ~stall_flag) || (id_ready_go && exe_allowin);
-assign new_entry = if_ready_go && id_allowin;
+assign stall_now 	= any_excp | id_flush;
+assign id_ready_go 	= is_hold || (is_fresh && (any_excp || src_ok));
+assign id_allowin 	= (is_expired &&  ~stall_flag) || (id_ready_go && exe_allowin);
+assign new_entry 	= if_ready_go && id_allowin;
 ```
 
 ## 缓存架构
