@@ -35,7 +35,7 @@ module mem_stage (
     //prev_stage
     output wire         mem_any_ex,
     output wire         ll_running,
-    input  wire [`exe_bus_w - 1:0] exe2mem_bus,
+    input  wire [`EXE_BUS_W - 1:0] exe2mem_bus,
     input  wire         exe_ready_go,
     output wire         mem_allowin,
     //next_stage
@@ -43,7 +43,7 @@ module mem_stage (
     input  wire         wb_need_tlb,
     input  wire [18:0]  wb_tlb_vppn,
     input  wire [ 9:0]  wb_tlb_asid,
-    output wire [`mem_bus_w - 1:0] mem2wb_bus,
+    output wire [`MEM_BUS_W - 1:0] mem2wb_bus,
     output wire         mem_ready_go,
     input  wire         wb_allowin,
     //cache
@@ -86,7 +86,7 @@ module mem_stage (
     reg         stall_flag;
     wire        new_entry;
     //exe2mem_bus
-    reg [`exe_bus_w - 1:0] exe2mem_bus_reg;
+    reg [`EXE_BUS_W - 1:0] exe2mem_bus_reg;
     wire [31:0] pc_reg;
     wire [31:0] exe_result_reg;
     wire        forwrd_on_mem_reg;
@@ -102,7 +102,7 @@ module mem_stage (
     wire        mem_ispreld_reg;
     wire        mem_usign_reg;
     wire [ 3:0] mem_mask_reg;
-    wire [ 2:0] mem_strb_reg;
+    wire [ 2:0] mem_len_reg;
     wire        mem_has_req_reg;
     wire        mem_res_ld_reg;
     wire        cacop_valid_reg;
@@ -128,7 +128,6 @@ module mem_stage (
     //excp
     wire        pil_inst, pis_inst, pme_inst, ppi_inst, ale_inst, tlbr_inst;
     wire        mem_pil, mem_pis, mem_pme, mem_ppi, mem_ale, mem_tlbr;
-    wire        mem_any_ex;
     wire [15:0] mem_ex_bus;
     //mem2wb_bus
     wire [31:0] pc;
@@ -164,7 +163,7 @@ module mem_stage (
         mem_ispreld_reg,
         mem_usign_reg,
         mem_mask_reg,
-        mem_strb_reg,
+        mem_len_reg,
         mem_has_req_reg,
         mem_res_ld_reg,
         cacop_valid_reg,
@@ -222,8 +221,8 @@ module mem_stage (
                         & ((crmd_plv == 2'd3 && tlb_plv == 2'd3) || crmd_plv == 2'd0) & ~tlb_d;
     assign mem_ppi      = ppi_inst & ~direct_access & ~dmw_hit
                         & tlb_found & tlb_v & (crmd_plv == 2'd3 && tlb_plv == 2'd0);
-    assign mem_ale      = ale_inst & ((mem_strb_reg[1] & exe_result_reg[0])
-                                    | (mem_strb_reg[2] & (exe_result_reg[0] | exe_result_reg[1])));
+    assign mem_ale      = ale_inst & ((mem_len_reg[1] & exe_result_reg[0])
+                                    | (mem_len_reg[2] & (exe_result_reg[0] | exe_result_reg[1])));
     assign mem_tlbr     = tlbr_inst & ~direct_access & ~dmw_hit & ~tlb_found;
     assign mem_any_ex   = mem_pil | mem_pis | mem_pme | mem_ppi | mem_ale | mem_tlbr;
     assign mem_ex_bus   = {exe_ex_bus_reg, mem_pil, mem_pis, mem_pme, mem_ppi, mem_ale, mem_tlbr};
@@ -273,15 +272,15 @@ module mem_stage (
     assign sc_valid     = (physical_addr == ll_target_reg) & llbit;
     assign mem_invalid  = (mem_ispreld_reg & ~preld_valid) | (mem_issc_reg & ~sc_valid);
     assign mem_cancel   = mem_has_req_reg & (mem_any_ex | mem_invalid);
-    assign ld_hlfwd_res = ({16{mem_mask_reg[2]}} & dcache_rdata[31:16])    //To do, migrate to dcache :(
+    assign ld_hlfwd_res = ({16{mem_mask_reg[2]}} & dcache_rdata[31:16])    //migrate to dcache?
                         | ({16{mem_mask_reg[0]}} & dcache_rdata[15:0 ]);
     assign ld_byte_res  = ({ 8{mem_mask_reg[0]}} & dcache_rdata[ 7:0 ])
                         | ({ 8{mem_mask_reg[1]}} & dcache_rdata[15:8 ])
                         | ({ 8{mem_mask_reg[2]}} & dcache_rdata[23:16])
                         | ({ 8{mem_mask_reg[3]}} & dcache_rdata[31:24]);
-    assign ld_res       = ({32{mem_strb_reg[2]}} & dcache_rdata)
-                        | ({32{mem_strb_reg[1]}} & {{16{mem_usign_reg ? 1'b0 : ld_hlfwd_res[15]}}, ld_hlfwd_res[15:0]})
-                        | ({32{mem_strb_reg[0]}} & {{24{mem_usign_reg ? 1'b0 : ld_byte_res [ 7]}}, ld_byte_res [ 7:0]});
+    assign ld_res       = ({32{mem_len_reg[2]}} & dcache_rdata)
+                        | ({32{mem_len_reg[1]}} & {{16{mem_usign_reg ? 1'b0 : ld_hlfwd_res[15]}}, ld_hlfwd_res[15:0]})
+                        | ({32{mem_len_reg[0]}} & {{24{mem_usign_reg ? 1'b0 : ld_byte_res [ 7]}}, ld_byte_res [ 7:0]});
     assign mem_result   = ({32{mem_res_ld_reg}} & ld_res)
                         | ({32{mem_issc_reg  }} & {31'b0, sc_valid})
                         | ({32{~(mem_res_ld_reg | mem_issc_reg)}} & exe_result_reg);

@@ -27,13 +27,14 @@ module forwarding_unit (
     input   wire [ 4:0] wb_index
 );
     reg [ 2:0] ptr;
-    assign ptr_out = ptr;
     reg [ 2:0] ptr_reg[31:0];
     reg [ 2:0] src_reg[31:0];
     reg [31:0] valid;
-    assign blocked1 = valid[query1];
-    assign blocked2 = valid[query2];
-    wire [ 2:0] ready_bus = {wb_ready, mem_ready, exe_ready};
+    wire [2:0] ready_bus;
+    assign ptr_out      = ptr;
+    assign blocked1     = valid[query1];
+    assign blocked2     = valid[query2];
+    assign ready_bus    = {wb_ready, mem_ready, exe_ready};
     assign ready1 = ((ptr_reg[query1] == exe_ptr) & exe_ready)
                   | ((ptr_reg[query1] == mem_ptr) & mem_ready)
                   | ((ptr_reg[query1] == wb_ptr ) & wb_ready );
@@ -55,14 +56,15 @@ module forwarding_unit (
             if (ex_flush)
                 valid <= 32'b0;
             else begin
-                if (gr_wr_en && ((wb_index == rd) ? ~new_rd : 1'b1) && (ptr_reg[wb_index] == wb_ptr))   //Sucks :(
+                if (gr_wr_en && ((wb_index == rd) ? ~new_rd : 1'b1)
+                    && (ptr_reg[wb_index] == wb_ptr))   //Sucks :(
                     valid[wb_index] <= 1'b0;
                 if (new_rd && rd != 5'b0)
                     valid[rd] <= 1'b1;
             end
 
             if (new_rd) begin
-                ptr <= {ptr[0], ptr[2:1]};  //Right shift
+                ptr <= {ptr[0], ptr[2:1]};
                 ptr_reg[rd] <= ptr;
                 src_reg[rd] <= rd_src;
             end

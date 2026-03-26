@@ -5,12 +5,12 @@ module id_stage (
     input   wire        ex_flush,
     input   wire        pred_flush,
     //prev_stage
-    input   wire [`if_bus_w - 1:0] if2id_bus,
+    input   wire [`IF_BUS_W - 1:0] if2id_bus,
     input   wire        if_ready_go,
     output  wire        id_allowin,
     //next_stage
     output  wire        id_is_fresh,
-    output  wire [`id_bus_w - 1:0] id2exe_bus,
+    output  wire [`ID_BUS_W - 1:0] id2exe_bus,
     output  wire        id_ready_go,
     input   wire        exe_allowin,
     //csr
@@ -52,7 +52,7 @@ module id_stage (
     wire        src_ok;
     wire        new_entry;
     //if2id_bus
-    reg [`if_bus_w - 1:0] if2id_bus_reg;
+    reg [`IF_BUS_W - 1:0] if2id_bus_reg;
     wire [ 2:0] ras_chkpt_reg;
     wire [31:0] inst_reg;
     wire [31:0] pc_reg;
@@ -166,7 +166,7 @@ module id_stage (
     wire [ 4:0] preld_hint;
     wire        mem_ld, mem_st, mem_ispreld, mem_isll, mem_issc;
     wire        mem_usign;
-    wire [ 2:0] mem_strb;
+    wire [ 2:0] mem_len;
     //exe_info
     wire        alu_op_add;
     wire        alu_op_sub;
@@ -460,9 +460,9 @@ module id_stage (
     assign mem_isll     = inst_ll_w;
     assign mem_issc     = inst_sc_w;
     assign mem_usign    = inst_ld_bu | inst_ld_hu;
-    assign mem_strb[0]  = inst_ld_b | inst_st_b | inst_ld_bu | inst_preld;
-    assign mem_strb[1]  = inst_ld_h | inst_st_h | inst_ld_hu;
-    assign mem_strb[2]  = inst_ld_w | inst_st_w | inst_ll_w | inst_sc_w;
+    assign mem_len[0]   = inst_ld_b | inst_st_b | inst_ld_bu | inst_preld;
+    assign mem_len[1]   = inst_ld_h | inst_st_h | inst_ld_hu;
+    assign mem_len[2]   = inst_ld_w | inst_st_w | inst_ll_w | inst_sc_w;
 //exe_info
     assign alu_op_add       = inst_add_w | inst_addi_w | inst_ld_b | inst_ld_h | inst_ld_w
                             | inst_st_b | inst_st_h | inst_st_w | inst_ld_bu | inst_ld_hu
@@ -741,7 +741,7 @@ module id_stage (
         mem_isll,
         mem_issc,
         mem_ispreld,
-        mem_strb,
+        mem_len,
         mem_usign,
         cacop_valid,
         cacop_target,

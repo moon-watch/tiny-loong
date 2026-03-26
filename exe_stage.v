@@ -18,13 +18,13 @@ module exe_stage (
     output wire         pht1_taken,
     //prev_stage
     input  wire         id_is_fresh,
-    input  wire [`id_bus_w - 1:0] id2exe_bus,
+    input  wire [`ID_BUS_W - 1:0] id2exe_bus,
     input  wire         id_ready_go,
     output wire         exe_allowin,
     //next_stage
     input  wire         mem_any_ex,
     input  wire         ll_running,
-    output wire [`exe_bus_w - 1:0] exe2mem_bus,
+    output wire [`EXE_BUS_W - 1:0] exe2mem_bus,
     output wire         exe_ready_go,
     input  wire         mem_allowin,
     //icache
@@ -64,7 +64,7 @@ module exe_stage (
     reg         stall_flag;
     wire        new_entry;
     //id2exe_bus
-    reg  [`id_bus_w - 1:0] id2exe_bus_reg;
+    reg  [`ID_BUS_W - 1:0] id2exe_bus_reg;
     wire [ 2:0] ras_chkpt_reg;
     wire [31:0] pc_reg;
     wire        forwrd_on_exe_reg;
@@ -84,7 +84,7 @@ module exe_stage (
     wire        mem_isll_reg;
     wire        mem_issc_reg;
     wire        mem_ispreld_reg;
-    wire [ 2:0] mem_strb_reg;
+    wire [ 2:0] mem_len_reg;
     wire        mem_usign_reg;
     wire        cacop_valid_reg;
     wire        cacop_target_reg;
@@ -133,7 +133,7 @@ module exe_stage (
     wire        mem_ispreld;
     wire        mem_usign;
     wire [ 3:0] mem_mask;
-    wire [ 2:0] mem_strb;
+    wire [ 2:0] mem_len;
     wire        mem_has_req;
     wire        mem_res_ld;
     wire        cacop_valid;
@@ -178,7 +178,7 @@ module exe_stage (
         mem_isll_reg,
         mem_issc_reg,
         mem_ispreld_reg,
-        mem_strb_reg,
+        mem_len_reg,
         mem_usign_reg,
         cacop_valid_reg,
         cacop_target_reg,
@@ -216,7 +216,7 @@ module exe_stage (
     assign br_res       = (br_src1_pc_reg ? pc_reg : alu_src1_reg) + rd_value_reg;
     assign pc_seqnxt    = pc_reg + 32'd4;
     assign br_target    = br_cond_ok ? br_res : pc_seqnxt;
-    assign pred_flush   = id_is_fresh && ~recovery_mode && ((br_taken ? br_res : pc_seqnxt) != id2exe_bus[`id_bus_pc]);
+    assign pred_flush   = id_is_fresh && ~recovery_mode && ((br_taken ? br_res : pc_seqnxt) != id2exe_bus[`ID_BUS_PC]);
     assign btb_wr_pc    = pc_reg[13:2];
     assign btb_we       = br_taken && pred_flush && ~ret_type;
     assign btb_wtag     = pc_reg[15:8];
@@ -247,16 +247,16 @@ module exe_stage (
     assign mem_valid             = ((mem_isll_reg | mem_issc_reg) & ~ll_running)
                                  | mem_normal | mem_ispreld_reg;
     assign dcache_valid          = is_fresh & mem_valid & ~any_excp;
-    assign dcache_wdata          = ({32{mem_strb_reg[0] &  byte_mask[0]}} &  rd_value_reg              )    //migrate to dcache, to do :(
-                                 | ({32{mem_strb_reg[0] &  byte_mask[1]}} & {rd_value_reg[23:0],  8'b0})
-                                 | ({32{mem_strb_reg[0] &  byte_mask[2]}} & {rd_value_reg[15:0], 16'b0})
-                                 | ({32{mem_strb_reg[0] &  byte_mask[3]}} & {rd_value_reg[ 7:0], 24'b0})
-                                 | ({32{mem_strb_reg[1] & ~quick_sum[1]}} &  rd_value_reg              )
-                                 | ({32{mem_strb_reg[1] &  quick_sum[1]}} & {rd_value_reg[15:0], 16'b0})
-                                 | ({32{mem_strb_reg[2]                }} &  rd_value_reg              );
-    assign dcache_wstrb          = ({4{mem_strb_reg[0]}} & byte_mask )
-                                 | ({4{mem_strb_reg[1]}} & hlfwd_mask)
-                                 | ({4{mem_strb_reg[2]}} & 4'hf      );
+    assign dcache_wdata          = ({32{mem_len_reg[0] &  byte_mask[0]}} & {24'b0, rd_value_reg[7:0]})    //migrate to dcache?
+                                 | ({32{mem_len_reg[0] &  byte_mask[1]}} & {16'b0, rd_value_reg[7:0], 8'b0})
+                                 | ({32{mem_len_reg[0] &  byte_mask[2]}} & {8'b0, rd_value_reg[7:0], 16'b0})
+                                 | ({32{mem_len_reg[0] &  byte_mask[3]}} & {rd_value_reg[7:0], 24'b0})
+                                 | ({32{mem_len_reg[1] & ~quick_sum[1]}} & {16'b0, rd_value_reg[15:0]})
+                                 | ({32{mem_len_reg[1] &  quick_sum[1]}} & {rd_value_reg[15:0], 16'b0})
+                                 | ({32{mem_len_reg[2]                }} &  rd_value_reg);
+    assign dcache_wstrb          = ({4{mem_len_reg[0]}} & byte_mask )
+                                 | ({4{mem_len_reg[1]}} & hlfwd_mask)
+                                 | ({4{mem_len_reg[2]}} & 4'hf      );
     decoder_2_4 byte_mask_gen(.in(quick_sum[1:0]), .out(byte_mask));
     assign hlfwd_mask = quick_sum[1] ? 4'b1100 : 4'b0011;
 //exe2mem_bus
@@ -274,7 +274,7 @@ module exe_stage (
     assign mem_ispreld     = mem_ispreld_reg;
     assign mem_usign       = mem_usign_reg;
     assign mem_mask        = byte_mask;
-    assign mem_strb        = mem_strb_reg;
+    assign mem_len         = mem_len_reg;
     assign mem_has_req     = mem_ld_reg | mem_st_reg | mem_isll_reg | mem_issc_reg | mem_ispreld_reg;
     assign mem_res_ld      = mem_ld_reg | mem_isll_reg;
     assign cacop_valid     = cacop_valid_reg;
@@ -307,7 +307,7 @@ module exe_stage (
         mem_ispreld,
         mem_usign,
         mem_mask,
-        mem_strb,
+        mem_len,
         mem_has_req,
         mem_res_ld,
         cacop_valid,

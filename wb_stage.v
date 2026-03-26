@@ -11,7 +11,7 @@ module wb_stage (
     output wire         wb_need_tlb,
     output wire [18:0]  wb_tlb_vppn,
     output wire [ 9:0]  wb_tlb_asid,
-    input  wire [`mem_bus_w - 1:0] mem2wb_bus,
+    input  wire [`MEM_BUS_W - 1:0] mem2wb_bus,
     input  wire         mem_ready_go,
     output wire         wb_allowin,
     //regfile
@@ -102,7 +102,7 @@ module wb_stage (
     reg         recovery_mode;  //to do: use is_expired instead :(
     wire        new_entry;
     //mem2wb_bus
-    reg [`mem_bus_w - 1:0] mem2wb_bus_reg;
+    reg [`MEM_BUS_W - 1:0] mem2wb_bus_reg;
     wire [31:0] pc_reg;
     wire        forwrd_on_wb_reg;
     wire [ 2:0] forwrd_ptr_reg;

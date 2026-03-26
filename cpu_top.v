@@ -1,9 +1,10 @@
+`include "cpu_config.h"
 `include "csr.h"
 `include "bus_width.h"
-module cpu_top (
-    input  wire         clk,
-    input  wire         rst,
-    input  wire [ 7:0]  hw_int_in,
+module core_top (
+    input  wire         aclk,
+    input  wire         aresetn,
+    input  wire [ 7:0]  intrpt,
     output wire [ 3:0]  arid,
     output wire [31:0]  araddr,
     output wire [ 7:0]  arlen,
@@ -46,6 +47,10 @@ module cpu_top (
     output wire [31:0]  debug_gr_wdata,
     output wire [31:0]  debug_pc
 );
+wire clk = aclk;
+reg rst;
+always @(posedge aclk) rst <= ~aresetn;
+wire [ 7:0] hw_int_in = intrpt;
 //Wire daclaretion
     //axi_mux
     wire [31:0]  icache_axi_araddr;
@@ -154,7 +159,7 @@ module cpu_top (
     wire         is_call;
     wire [31:0]  call_target;
     wire         is_rtn;
-    wire [`if_bus_w - 1:0] if2id_bus;
+    wire [`IF_BUS_W - 1:0] if2id_bus;
     wire         if_ready_go;
     wire [18:0]  tlb_s0_vppn;
     wire         tlb_s0_va_bit12;
@@ -181,7 +186,7 @@ module cpu_top (
     wire         id_allowin;
     wire [4:0]   rj_addr;
     wire [4:0]   rk_rd_addr;
-    wire [`id_bus_w - 1:0] id2exe_bus;
+    wire [`ID_BUS_W - 1:0] id2exe_bus;
     wire         id_ready_go;
     wire         id_is_fresh;
     wire         dest_wr_en;
@@ -201,7 +206,7 @@ module cpu_top (
     wire         exe_allowin;
     wire [31:0]  br_target;
     wire         pred_flush;
-    wire [`exe_bus_w - 1:0] exe2mem_bus;
+    wire [`EXE_BUS_W - 1:0] exe2mem_bus;
     wire         exe_ready_go;
     wire         exe2if_cacop_valid;
     wire [3:0]   exe2if_cacop_op;
@@ -226,7 +231,7 @@ module cpu_top (
     wire         mem_ready_go;
     wire         mem_any_ex;
     wire         ll_running;
-    wire [`mem_bus_w - 1:0] mem2wb_bus;
+    wire [`MEM_BUS_W - 1:0] mem2wb_bus;
     wire         dcache_mat;
     wire [19:0]  dcache_tag;
     wire [ 7:0]  dcache_index_buf;
@@ -948,4 +953,227 @@ module cpu_top (
         .wb_vaddr    (wb_vaddr   )
     );
 //end
+//diff_test
+`ifdef DIFF_TEST_EN
+`define es u_exe_stage
+`define ds u_id_stage
+`define ms u_mem_stage
+`define wb u_wb_stage
+`define csr u_csr
+    //inst commit
+    reg         wb_is_fresh         = 1'b0;
+    reg  [31:0] wb_pc_reg           = 32'b0;
+    reg  [31:0] exe_inst            = 32'b0;
+    reg  [31:0] mem_inst            = 32'b0;
+    reg  [31:0] wb_inst             = 32'b0;
+    reg         wb_tlbfill          = 1'b0;
+    reg  [ 3:0] wb_tlbfill_index    = 4'b0;
+    reg         wb_cntinst          = 1'b0;
+    reg  [63:0] wb_timer64          = 64'b0;
+    reg         wb_gr_we            = 1'b0;
+    reg  [ 4:0] wb_gr_addr          = 5'b0;
+    reg  [31:0] wb_gr_wdata         = 32'b0;
+    reg         wb_csr_rstat        = 1'b0;
+    reg  [31:0] wb_csr_rvalue       = 32'b0;
+    always @(posedge clk) begin
+        wb_is_fresh <= `wb.is_fresh;
+        wb_pc_reg   <= `wb.pc_reg;
+        if (`es.new_entry)
+            exe_inst    <= `ds.inst_reg;
+        if (`ms.new_entry)
+            mem_inst    <= exe_inst;
+        if (`wb.new_entry)
+            wb_inst     <= mem_inst;
+        wb_tlbfill          <= `wb.tlb_inst_reg[3];
+        wb_tlbfill_index    <= `wb.tlb_w_index;
+        wb_cntinst          <= |`wb.wb_src_reg[3:1];
+        wb_timer64          <= `wb.timer64_r;
+        wb_gr_we            <= `wb.gr_wr_en;
+        wb_gr_addr          <= `wb.gr_wr_addr;
+        wb_gr_wdata         <= `wb.gr_wr_data;
+        wb_csr_rstat        <= `wb.wb_src_reg[4] && `wb.csr_num == `CSR_ESTAT;
+        wb_csr_rvalue       <= `wb.csr_rvalue;
+    end
+    DifftestInstrCommit DifftestInstrCommit(
+        .clock              (clk                    ),
+        .coreid             (`csr.csr_cpuid[8:0]    ),
+        .index              (0                      ),
+        .valid              (wb_is_fresh            ),
+        .pc                 (wb_pc_reg              ),
+        .instr              (wb_inst                ),
+        .skip               (0                      ),
+        .is_TLBFILL         (wb_tlbfill             ),
+        .TLBFILL_index      (wb_tlbfill_index       ),
+        .is_CNTinst         (wb_cntinst             ),
+        .timer_64_value     (wb_timer64             ),
+        .wen                (wb_gr_we               ),
+        .wdest              (wb_gr_addr             ),
+        .wdata              (wb_gr_wdata            ),
+        .csr_rstat          (wb_csr_rstat           ),
+        .csr_data           (wb_csr_rvalue          )
+    );
+    //excp
+    reg wb_any_excp = 1'b0;
+    reg wb_ertn = 1'b0;
+    always @(posedge clk) begin
+        wb_any_excp <= `wb.any_excp_reg && ~`wb.recovery_mode;
+        wb_ertn <= `wb.ertn_flush;
+    end
+    DifftestExcpEvent DifftestExcpEvent(
+        .clock              (clk                    ),
+        .coreid             (`csr.csr_cpuid[8:0]    ),
+        .excp_valid         (wb_any_excp            ),
+        .eret               (wb_ertn                ),
+        .intrNo             (`csr.csr_estat[12:2]   ),
+        .cause              (`csr.csr_estat_ecode   ),
+        .exceptionPC        (wb_pc_reg              ),
+        .exceptionInst      (wb_inst                )
+    );
+    //trap (unused)
+    DifftestTrapEvent DifftestTrapEvent(
+        .clock              (clk                    ),
+        .coreid             (`csr.csr_cpuid[8:0]    ),
+        .valid              (1'b0                   ),
+        .code               (                       ),
+        .pc                 (                       ),
+        .cycleCnt           (                       ),
+        .instrCnt           (                       )
+    );
+    //store
+    reg         wb_sc_w      = 1'b0;
+    reg         wb_st_w      = 1'b0;
+    reg         wb_st_h      = 1'b0;
+    reg         wb_st_b      = 1'b0;
+    reg  [ 3:0] exe_st_bus   = 4'b0;
+    reg  [ 3:0] mem_st_bus   = 4'b0;
+    reg  [ 3:0] wb_st_bus    = 4'b0;
+    reg         wb_llbit     = 1'b0;
+    reg  [31:0] wb_mem_vaddr  = 32'b0;
+    reg  [31:0] wb_mem_paddr  = 32'b0;
+    reg  [31:0] mem_st_wdata = 32'b0;
+    reg  [31:0] wb_st_wdata  = 32'b0;
+    reg  [31:0] mem_vaddr     = 32'b0;
+    reg  [31:0] mem_paddr     = 32'b0;
+    reg  [31:0] st_wdata     = 32'b0;
+    always @(posedge clk) begin
+        if (`es.new_entry)
+            exe_st_bus <= {`ds.inst_sc_w, `ds.inst_st_w, `ds.inst_st_h, `ds.inst_st_b};
+        if (`ms.new_entry) begin
+            mem_st_wdata <= `es.dcache_wdata;
+            mem_st_bus <= exe_st_bus;
+        end
+        if (`wb.new_entry) begin
+            wb_mem_vaddr <= `ms.exe_result_reg;
+            wb_mem_paddr <= `ms.physical_addr;
+            wb_st_wdata <= mem_st_wdata;
+            wb_st_bus <= mem_st_bus;
+        end
+        {wb_sc_w, wb_st_w, wb_st_h, wb_st_b} <= wb_st_bus & {4{~`wb.any_excp_reg & `wb.is_fresh}};
+        wb_llbit <= `csr.llbit;
+        mem_vaddr <= wb_mem_vaddr;
+        mem_paddr <= wb_mem_paddr;
+        st_wdata <= wb_st_wdata;
+    end
+    DifftestStoreEvent DifftestStoreEvent(
+        .clock              (clk                ),
+        .coreid             (`csr.csr_cpuid[8:0]),
+        .index              (0                  ),
+        .valid              ({4'b0, wb_llbit && wb_sc_w, wb_st_w, wb_st_h, wb_st_b}),
+        .storePAddr         (mem_paddr           ),
+        .storeVAddr         (mem_vaddr           ),
+        .storeData          (st_wdata           )
+    );
+    //load
+    reg  [ 5:0] exe_ld_bus  = 6'b0;
+    reg  [ 5:0] mem_ld_bus  = 6'b0;
+    reg  [ 5:0] wb_ld_bus   = 6'b0;
+    reg  [ 5:0] ld_bus      = 6'b0;
+    always @(posedge clk) begin
+        if (`es.new_entry)
+            exe_ld_bus <= {`ds.inst_ll_w, `ds.inst_ld_w, `ds.inst_ld_hu, `ds.inst_ld_h, `ds.inst_ld_bu, `ds.inst_ld_b};
+        if (`ms.new_entry)
+            mem_ld_bus <= exe_ld_bus;
+        if (`wb.new_entry)
+            wb_ld_bus <= mem_ld_bus;
+        ld_bus <= wb_ld_bus & {6{~`wb.any_excp_reg & `wb.is_fresh}};
+    end
+    DifftestLoadEvent DifftestLoadEvent(
+        .clock              (clk                ),
+        .coreid             (`csr.csr_cpuid[8:0]),
+        .index              (0                  ),
+        .valid              ({2'b0, ld_bus}     ),
+        .paddr              (mem_paddr          ),
+        .vaddr              (mem_vaddr          )
+    );
+    //csr
+    DifftestCSRRegState DifftestCSRRegState(
+        .clock              (clk                ),
+        .coreid             (`csr.csr_cpuid[8:0]),
+        .crmd               (`csr.csr_crmd      ),
+        .prmd               (`csr.csr_prmd      ),
+        .euen               (`csr.csr_euen      ),
+        .ecfg               (`csr.csr_ecfg    ),
+        .estat              (`csr.csr_estat   ),
+        .era                (`csr.csr_era     ),
+        .badv               (`csr.csr_badv    ),
+        .eentry             (`csr.csr_eentry  ),
+        .tlbidx             (`csr.csr_tlbidx  ),
+        .tlbehi             (`csr.csr_tlbehi  ),
+        .tlbelo0            (`csr.csr_tlbelo0 ),
+        .tlbelo1            (`csr.csr_tlbelo1 ),
+        .asid               (`csr.csr_asid    ),
+        .pgdl               (`csr.csr_pgdl    ),
+        .pgdh               (`csr.csr_pgdh    ),
+        .save0              (`csr.csr_save0   ),
+        .save1              (`csr.csr_save1   ),
+        .save2              (`csr.csr_save2   ),
+        .save3              (`csr.csr_save3   ),
+        .tid                (`csr.csr_tid     ),
+        .tcfg               (`csr.csr_tcfg    ),
+        .tval               (`csr.csr_tval    ),
+        .ticlr              (`csr.csr_ticlr   ),
+        .llbctl             (`csr.csr_llbctl  ),
+        .tlbrentry          (`csr.csr_tlbrentry),
+        .dmw0               (`csr.csr_dmw0    ),
+        .dmw1               (`csr.csr_dmw1    )
+    );
+    //regfile
+`define regs u_regfile
+    DifftestGRegState DifftestGRegState(
+        .clock              (clk                ),
+        .coreid             (`csr.csr_cpuid[8:0]),
+        .gpr_0              (`regs.reg_file[0]  ),
+        .gpr_1              (`regs.reg_file[1]  ),
+        .gpr_2              (`regs.reg_file[2]  ),
+        .gpr_3              (`regs.reg_file[3]  ),
+        .gpr_4              (`regs.reg_file[4]  ),
+        .gpr_5              (`regs.reg_file[5]  ),
+        .gpr_6              (`regs.reg_file[6]  ),
+        .gpr_7              (`regs.reg_file[7]  ),
+        .gpr_8              (`regs.reg_file[8]  ),
+        .gpr_9              (`regs.reg_file[9]  ),
+        .gpr_10             (`regs.reg_file[10] ),
+        .gpr_11             (`regs.reg_file[11] ),
+        .gpr_12             (`regs.reg_file[12] ),
+        .gpr_13             (`regs.reg_file[13] ),
+        .gpr_14             (`regs.reg_file[14] ),
+        .gpr_15             (`regs.reg_file[15] ),
+        .gpr_16             (`regs.reg_file[16] ),
+        .gpr_17             (`regs.reg_file[17] ),
+        .gpr_18             (`regs.reg_file[18] ),
+        .gpr_19             (`regs.reg_file[19] ),
+        .gpr_20             (`regs.reg_file[20] ),
+        .gpr_21             (`regs.reg_file[21] ),
+        .gpr_22             (`regs.reg_file[22] ),
+        .gpr_23             (`regs.reg_file[23] ),
+        .gpr_24             (`regs.reg_file[24] ),
+        .gpr_25             (`regs.reg_file[25] ),
+        .gpr_26             (`regs.reg_file[26] ),
+        .gpr_27             (`regs.reg_file[27] ),
+        .gpr_28             (`regs.reg_file[28] ),
+        .gpr_29             (`regs.reg_file[29] ),
+        .gpr_30             (`regs.reg_file[30] ),
+        .gpr_31             (`regs.reg_file[31] )
+    );
+`endif
 endmodule

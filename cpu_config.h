@@ -1,1 +1,2 @@
-`define reset_pc 32'h1C000000
+`define RESET_PC 32'h1C000000
+// `define DIFF_TEST_EN

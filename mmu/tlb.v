@@ -2,9 +2,9 @@ module tlb #(
     parameter TLBNUM = 16
 ) (
     input  wire                        clk,
-    //Search port 0 for fetch
+    //if
     input  wire [                18:0] s0_vppn,
-    input  wire                        s0_va_bit12,     //Odd or even entry
+    input  wire                        s0_va_bit12,
     input  wire [                 9:0] s0_asid,
     output wire                        s0_found,
     output wire [$clog2(TLBNUM) - 1:0] s0_index,
@@ -14,10 +14,10 @@ module tlb #(
     output wire [                 1:0] s0_mat,
     output wire                        s0_d,
     output wire                        s0_v,
-    //Search port 1 for ld/st
-    input  wire [                18:0] s1_vppn,         //From mem_stage
-    input  wire                        s1_va_bit12,     //From mem_stage, odd or even entry
-    input  wire [                 9:0] s1_asid,             //From mem_stage
+    //mem
+    input  wire [                18:0] s1_vppn,
+    input  wire                        s1_va_bit12,
+    input  wire [                 9:0] s1_asid,
     output wire                        s1_found,
     output wire [$clog2(TLBNUM) - 1:0] s1_index,
     output wire [                19:0] s1_ppn,
@@ -26,10 +26,10 @@ module tlb #(
     output wire [                 1:0] s1_mat,
     output wire                        s1_d,
     output wire                        s1_v,
-    //invtlb opcode
+    //inv
     input  wire                        invtlb_valid,
     input  wire [                 4:0] invtlb_op,
-    //Write port
+    //wr
     input  wire                        we,
     input  wire [$clog2(TLBNUM) - 1:0] w_index,
     input  wire                        w_e,
@@ -47,7 +47,7 @@ module tlb #(
     input  wire [                 1:0] w_mat1,
     input  wire                        w_d1,
     input  wire                        w_v1,
-    //Read port
+    //rd
     input  wire [$clog2(TLBNUM) - 1:0] r_index,
     output wire                        r_e,
     output wire [                18:0] r_vppn,
@@ -65,26 +65,42 @@ module tlb #(
     output wire                        r_d1,
     output wire                        r_v1
 );
-    reg [TLBNUM - 1:0] tlb_e;
-    reg [TLBNUM - 1:0] tlb_ps4MB;   //Pagesize 1:4MB 0:4KB
-    reg [        18:0] tlb_vppn [TLBNUM - 1:0];
-    reg [         9:0] tlb_asid [TLBNUM - 1:0];
-    reg [TLBNUM - 1:0] tlb_g;
-    reg [        19:0] tlb_ppn0 [TLBNUM - 1:0];
-    reg [         1:0] tlb_plv0 [TLBNUM - 1:0];
-    reg [         1:0] tlb_mat0 [TLBNUM - 1:0];
-    reg [TLBNUM - 1:0] tlb_d0;
-    reg [TLBNUM - 1:0] tlb_v0;
-    reg [        19:0] tlb_ppn1 [TLBNUM - 1:0];
-    reg [         1:0] tlb_plv1 [TLBNUM - 1:0];
-    reg [         1:0] tlb_mat1 [TLBNUM - 1:0];
-    reg [TLBNUM - 1:0] tlb_d1;
-    reg [TLBNUM - 1:0] tlb_v1;
-//Search operation(search port 0&1)
-    //Search channel0
+//declaration
+    //ram
+    reg  [TLBNUM - 1:0] tlb_e;
+    reg  [TLBNUM - 1:0] tlb_ps4MB;
+    reg  [        18:0] tlb_vppn [TLBNUM - 1:0];
+    reg  [         9:0] tlb_asid [TLBNUM - 1:0];
+    reg  [TLBNUM - 1:0] tlb_g;
+    reg  [        19:0] tlb_ppn0 [TLBNUM - 1:0];
+    reg  [         1:0] tlb_plv0 [TLBNUM - 1:0];
+    reg  [         1:0] tlb_mat0 [TLBNUM - 1:0];
+    reg  [TLBNUM - 1:0] tlb_d0;
+    reg  [TLBNUM - 1:0] tlb_v0;
+    reg  [        19:0] tlb_ppn1 [TLBNUM - 1:0];
+    reg  [         1:0] tlb_plv1 [TLBNUM - 1:0];
+    reg  [         1:0] tlb_mat1 [TLBNUM - 1:0];
+    reg  [TLBNUM - 1:0] tlb_d1;
+    reg  [TLBNUM - 1:0] tlb_v1;
+    wire [TLBNUM - 1:0] is_g_set;
+    wire [TLBNUM - 1:0] is_e_set;
+    //if
+    wire [TLBNUM - 1:0] is_asid_match0;
+    wire [TLBNUM - 1:0] is_vppn_match0;
     wire [TLBNUM - 1:0] match0;
-    assign s0_found = |match0;
-    wire [TLBNUM - 1:0] s0_odd_even = (tlb_ps4MB & s0_vppn[8]) | (~tlb_ps4MB & s0_va_bit12);
+    wire [TLBNUM - 1:0] s0_odd_even;
+    //mem
+    wire [TLBNUM - 1:0] is_asid_match1;
+    wire [TLBNUM - 1:0] is_vppn_match1;
+    wire [TLBNUM - 1:0] match1;
+    wire [TLBNUM - 1:0] s1_odd_even;
+//ram
+    assign is_g_set = tlb_g;
+    assign is_e_set = tlb_e;
+//if
+    assign match0       = is_vppn_match0 & (is_asid_match0 | is_g_set) & is_e_set;
+    assign s0_found     = |match0;
+    assign s0_odd_even  = (tlb_ps4MB & s0_vppn[8]) | (~tlb_ps4MB & s0_va_bit12);
     encoder_16_4 s0_index_gen(
         .in(match0),
         .out(s0_index));
@@ -94,10 +110,10 @@ module tlb #(
     assign s0_mat   = s0_odd_even ? tlb_mat1[s0_index] : tlb_mat0[s0_index];
     assign s0_d     = s0_odd_even ? tlb_d1  [s0_index] : tlb_d0  [s0_index];
     assign s0_v     = s0_odd_even ? tlb_v1  [s0_index] : tlb_v0  [s0_index];
-    //Search channel1
-    wire [TLBNUM - 1:0] match1;
-    assign s1_found = |match1;
-    wire [TLBNUM - 1:0] s1_odd_even = (tlb_ps4MB & s1_vppn[8]) | (~tlb_ps4MB & s1_va_bit12);
+//mem
+    assign match1       = is_vppn_match1 & (is_asid_match1 | is_g_set) & is_e_set;
+    assign s1_found     = |match1;
+    assign s1_odd_even  = (tlb_ps4MB & s1_vppn[8]) | (~tlb_ps4MB & s1_va_bit12);
     encoder_16_4 s1_index_gen(
         .in(match1),
         .out(s1_index));
@@ -107,47 +123,37 @@ module tlb #(
     assign s1_mat   = s1_odd_even ? tlb_mat1[s1_index] : tlb_mat0[s1_index];
     assign s1_d     = s1_odd_even ? tlb_d1  [s1_index] : tlb_d0  [s1_index];
     assign s1_v     = s1_odd_even ? tlb_v1  [s1_index] : tlb_v0  [s1_index];
-
-    wire [TLBNUM - 1:0] is_g_set = tlb_g;
-    wire [TLBNUM - 1:0] is_e_set = tlb_e;
-    wire [TLBNUM - 1:0] is_asid_match0;
-    wire [TLBNUM - 1:0] is_asid_match1;
-    wire [TLBNUM - 1:0] is_vppn_match0;
-    wire [TLBNUM - 1:0] is_vppn_match1;
-    assign match0 = is_vppn_match0 & (is_asid_match0 | is_g_set) & is_e_set;
-    assign match1 = is_vppn_match1 & (is_asid_match1 | is_g_set) & is_e_set;
-
+//match
     genvar j;
     generate
         for (j = 0; j < TLBNUM; j = j + 1) begin : COND_GEN
             assign is_asid_match0[j] = s0_asid == tlb_asid[j];
             assign is_asid_match1[j] = s1_asid == tlb_asid[j];
-            assign is_vppn_match0[j] = (s0_vppn[18:9] == tlb_vppn[j][18:9]) //Only compare the highest 10bits if pagesize is 4MB(actual 2 x 2MB), otherwise, comapre all the 19bits
+            assign is_vppn_match0[j] = (s0_vppn[18:9] == tlb_vppn[j][18:9])
                                     && (tlb_ps4MB[j] || s0_vppn[8:0] == tlb_vppn[j][8:0]);
             assign is_vppn_match1[j] = (s1_vppn[18:9] == tlb_vppn[j][18:9])
                                     && (tlb_ps4MB[j] || s1_vppn[8:0] == tlb_vppn[j][8:0]);
         end
     endgenerate
-//INVTLB operation(input multiplex search port 1)
+//inv
     always @(posedge clk) begin
         if (invtlb_valid) begin
             case (invtlb_op)
                 5'h0 : tlb_e <= {TLBNUM{1'b0}};
                 5'h1 : tlb_e <= {TLBNUM{1'b0}};
-                5'h2 : tlb_e <= tlb_e & ~is_g_set;   //Clear all entries with g set
-                5'h3 : tlb_e <= tlb_e & is_g_set;   //Clear all entries with g reset
+                5'h2 : tlb_e <= tlb_e & ~is_g_set;
+                5'h3 : tlb_e <= tlb_e & is_g_set;
                 5'h4 : tlb_e <= tlb_e & ~(~is_g_set & is_asid_match1);
                 5'h5 : tlb_e <= tlb_e & ~(~is_g_set & is_asid_match1 & is_vppn_match1);
                 5'h6 : tlb_e <= tlb_e & ~(is_vppn_match1 & (is_asid_match1 | is_g_set));
                 default: tlb_e <= tlb_e;
             endcase
         end else if (we)
-            tlb_e    [w_index] <= w_e;
+            tlb_e [w_index] <= w_e;
     end
-//Write operation
+//wr
     always @(posedge clk) begin
         if (we) begin
-            // tlb_e    [w_index] <= w_e;
             tlb_vppn [w_index] <= w_vppn;
             tlb_ps4MB[w_index] <= w_ps == 6'd21;
             tlb_asid [w_index] <= w_asid;
@@ -164,7 +170,7 @@ module tlb #(
             tlb_v1   [w_index] <= w_v1;
         end
     end
-//Read operation
+//rd
     assign r_e    = tlb_e    [r_index];
     assign r_vppn = tlb_vppn [r_index];
     assign r_ps   = tlb_ps4MB[r_index] ? 6'd21 : 6'd12;
@@ -180,5 +186,4 @@ module tlb #(
     assign r_mat1 = tlb_mat1 [r_index];
     assign r_d1   = tlb_d1   [r_index];
     assign r_v1   = tlb_v1   [r_index];
-
 endmodule

@@ -34,7 +34,7 @@ module if_stage (
     output wire [ 7:0]  pht0_idx,
     input  wire         pht0_taken,
     //next_stage
-    output wire [`if_bus_w - 1:0] if2id_bus,
+    output wire [`IF_BUS_W - 1:0] if2id_bus,
     output wire         if_ready_go,
     input  wire         id_allowin,
     //csr
@@ -202,7 +202,7 @@ module if_stage (
             stall_flag <= 1'b1;
 
         if (rst)
-            pc_reg <= `reset_pc;
+            pc_reg <= `RESET_PC;
         else if (ex_flush)
             pc_reg <= ertn_flush ? ertn_next_pc : ex_next_pc;
         else if (pred_flush)
