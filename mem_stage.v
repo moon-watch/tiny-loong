@@ -77,6 +77,7 @@ module mem_stage (
     wire        preld_valid;
     wire        sc_valid;
     wire        mem_invalid;
+    wire        mem_cancel;
     wire [15:0] ld_hlfwd_res;
     wire [ 7:0] ld_byte_res;
     wire [31:0] ld_res;
@@ -269,7 +270,7 @@ module mem_stage (
     assign ll_running   = ll_running_reg || (mem_isll_reg && ~recovery_mode);
     assign preld_valid  = direct_access ? crmd_datm[0] : (dmw_hit ? (dmw0_hit ? dmw0_mat[0] : dmw1_mat[0])
                         : (tlb_found & tlb_v & ((crmd_plv == 2'd3 && tlb_plv == 2'd3) || crmd_plv == 2'd0) & tlb_mat[0]));
-    assign sc_valid     = (physical_addr == ll_target_reg) & llbit;
+    assign sc_valid     = (physical_addr[31:0] == ll_target_reg) & llbit;
     assign mem_invalid  = (mem_ispreld_reg & ~preld_valid) | (mem_issc_reg & ~sc_valid);
     assign mem_cancel   = mem_has_req_reg & (mem_any_ex | mem_invalid);
     assign ld_hlfwd_res = ({16{mem_mask_reg[2]}} & dcache_rdata[31:16])    //migrate to dcache?
@@ -309,7 +310,7 @@ module mem_stage (
             ll_running_reg <= 1'b1;
 
         if (mem_ready_go && wb_allowin && mem_isll_reg)
-            ll_target_reg <= physical_addr;
+            ll_target_reg <= physical_addr[31:0];
 
         if (new_entry)
             exe2mem_bus_reg <= exe2mem_bus;

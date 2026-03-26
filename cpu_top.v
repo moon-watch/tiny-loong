@@ -40,12 +40,7 @@ module core_top (
     input  wire [ 3:0]  bid,
     input  wire [ 1:0]  bresp,
     input  wire         bvalid,
-    output wire         bready,
-//debug
-    output wire         debug_gr_we,
-    output wire [ 4:0]  debug_gr_waddr,
-    output wire [31:0]  debug_gr_wdata,
-    output wire [31:0]  debug_pc
+    output wire         bready
 );
 wire clk = aclk;
 reg rst;

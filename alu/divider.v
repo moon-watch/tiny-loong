@@ -14,7 +14,7 @@ module divider (
 //declaration
     localparam  idle    = 2'b00;
     localparam  detect  = 2'b01;
-    localparam  process = 2'b10;
+    localparam  proc    = 2'b10;
     reg  [1:0]  div_state;
     wire        is_detect = div_state[0];
     reg         init_flag;
@@ -37,7 +37,7 @@ module divider (
     assign  quotient        = quotient_sig ? (~quotient_reg + 1'b1) : quotient_reg;
     assign  remainder       = remainder_sig ? (~dividend_reg[63:32] + 1'b1) : dividend_reg[63:32];
     assign  result_ready    = result_ready_reg | repeated_ready;
-    assign  {cout, sub_result} = dividend_reg[63:31] + ~divisor_reg + 1'b1;
+    assign  {cout, sub_result} = dividend_reg[63:31] + ~divisor_reg + 1'b1;     //to do widthexpand :(
     always @(posedge clk) begin
         if (rst || ex_flush) begin
             init_flag           <= 1'b0;
@@ -56,7 +56,7 @@ module divider (
                         last_dividend <= dividend;
                         last_divisor  <= divisor;
                         if (!repeated) begin
-                            div_state <= process;
+                            div_state <= proc;
                             step_cnt  <= 5'd31;
                             if (u_sig) begin
                                 dividend_reg  <= {32'b0, (dividend[31] ? (~dividend + 1'b1) : dividend)};
@@ -71,7 +71,7 @@ module divider (
                             end
                         end
                     end
-                process: begin
+                proc: begin
                     step_cnt <= step_cnt - 1;
                     if (step_cnt == 5'b0) begin
                         div_state <= idle;

@@ -9,7 +9,7 @@ module adder (
     wire    cin;
     wire    cout;
     assign  cin = add_or_sub ? 1'b1 : 1'b0;
-    assign  {cout, result} = {1'b0, src1} + {1'b0, (add_or_sub ? ~src2 : src2)} + cin;
+    assign  {cout, result} = {1'b0, src1} + {1'b0, (add_or_sub ? ~src2 : src2)} + cin;  //to do widthexpand :(
     assign  ltu = ~cout;
     assign  lt  = (src1[31] & ~src2[31])
                 | ((src1[31] ~^ src2[31]) & result[31]);

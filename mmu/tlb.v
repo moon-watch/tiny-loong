@@ -88,19 +88,19 @@ module tlb #(
     wire [TLBNUM - 1:0] is_asid_match0;
     wire [TLBNUM - 1:0] is_vppn_match0;
     wire [TLBNUM - 1:0] match0;
-    wire [TLBNUM - 1:0] s0_odd_even;
+    wire                s0_odd_even;
     //mem
     wire [TLBNUM - 1:0] is_asid_match1;
     wire [TLBNUM - 1:0] is_vppn_match1;
     wire [TLBNUM - 1:0] match1;
-    wire [TLBNUM - 1:0] s1_odd_even;
+    wire                s1_odd_even;
 //ram
     assign is_g_set = tlb_g;
     assign is_e_set = tlb_e;
 //if
     assign match0       = is_vppn_match0 & (is_asid_match0 | is_g_set) & is_e_set;
     assign s0_found     = |match0;
-    assign s0_odd_even  = (tlb_ps4MB & s0_vppn[8]) | (~tlb_ps4MB & s0_va_bit12);
+    assign s0_odd_even  = tlb_ps4MB[s0_index] ? s0_vppn[8] : s0_va_bit12;
     encoder_16_4 s0_index_gen(
         .in(match0),
         .out(s0_index));
@@ -113,7 +113,7 @@ module tlb #(
 //mem
     assign match1       = is_vppn_match1 & (is_asid_match1 | is_g_set) & is_e_set;
     assign s1_found     = |match1;
-    assign s1_odd_even  = (tlb_ps4MB & s1_vppn[8]) | (~tlb_ps4MB & s1_va_bit12);
+    assign s1_odd_even  = tlb_ps4MB[s1_index] ? s1_vppn[8] : s1_va_bit12;
     encoder_16_4 s1_index_gen(
         .in(match1),
         .out(s1_index));

@@ -425,7 +425,7 @@ module csr #(
                             | ~csr_wmask[`CSR_TLBELO_PPN] & csr_tlbelo0_ppn;
         end
     end
-    assign csr_tlbelo0 = {3'b0, csr_tlbelo0_ppn, 1'b0, csr_tlbelo0_g, csr_tlbelo0_mat
+    assign csr_tlbelo0 = {4'b0, csr_tlbelo0_ppn, 1'b0, csr_tlbelo0_g, csr_tlbelo0_mat
                              , csr_tlbelo0_plv, csr_tlbelo0_d, csr_tlbelo0_v};
 //TLBELO1
     always @(posedge clk) begin
@@ -451,7 +451,7 @@ module csr #(
                             | ~csr_wmask[`CSR_TLBELO_PPN] & csr_tlbelo1_ppn;
         end
     end
-    assign csr_tlbelo1 = {3'b0, csr_tlbelo1_ppn, 1'b0, csr_tlbelo1_g, csr_tlbelo1_mat
+    assign csr_tlbelo1 = {4'b0, csr_tlbelo1_ppn, 1'b0, csr_tlbelo1_g, csr_tlbelo1_mat
                              , csr_tlbelo1_plv, csr_tlbelo1_d, csr_tlbelo1_v};
 //ASID
     always @(posedge clk) begin

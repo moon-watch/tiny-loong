@@ -35,7 +35,7 @@ module icache_block (
     localparam  rdlookup = 4'b0010;
     localparam  refill   = 4'b0100;
     localparam  sucok    = 4'b1000;
-    reg [5:0]   cache_state;
+    reg [3:0]   cache_state;
     wire        is_idle     = cache_state[0];
     wire        is_rdlookup = cache_state[1];
     wire        is_refill   = cache_state[2];

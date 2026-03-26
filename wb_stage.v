@@ -308,8 +308,8 @@ module wb_stage (
         //asid
     assign asid_asid_r      = asid_r[9:0];
     assign asid_asidbits_r  = asid_r[23:16];
-    assign asid_asid_w      = ({20{is_tlbsrch}} & asid_asid_r)
-                            | ({20{is_tlbrd  }} & (tlb_r_e ? tlb_r_asid : 10'b0));
+    assign asid_asid_w      = ({10{is_tlbsrch}} & asid_asid_r)
+                            | ({10{is_tlbrd  }} & (tlb_r_e ? tlb_r_asid : 10'b0));
     assign asid_w           = {8'b0, asid_asidbits_r, 6'b0, asid_asid_w};
     //invtlb
     assign invtlb_valid = ~any_excp_reg & is_fresh & is_invtlb;
