@@ -328,8 +328,8 @@ module exe_stage (
     assign stall_now    = any_excp | id_flush_reg;
     assign exe_ready_go = is_hold | (is_fresh & (any_excp                                 //excp
                                     | (cacop_valid_reg & cacop_req_ok)                    //cacop
-                                    | (mem_has_req & dcache_addr_ok)                        //mem
-                                    | (~(cacop_valid_reg | mem_has_req) & alu_res_ready))); //others
+                                    | (mem_has_req & mem_valid & dcache_addr_ok)          //mem, sucks :(
+                                    | (~(cacop_valid_reg | mem_has_req) & alu_res_ready))); //others, optimize generation of this condition, to do :(
     assign exe_allowin  = ((is_expired & ~stall_flag) | (exe_ready_go & mem_allowin)) & ~pred_flush;
     assign new_entry    = id_ready_go & exe_allowin;
     always @(posedge clk) begin
