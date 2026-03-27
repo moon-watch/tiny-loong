@@ -358,12 +358,13 @@ module exe_stage (
                 fresh:
                     if (stall_now)
                         exe_state  <= mem_allowin ? expired : hold;
-                    else if (exe_ready_go)
+                    else if (exe_ready_go) begin
                         if (mem_allowin) begin
                             if (~new_entry)
                                 exe_state <= expired;
                         end else
                             exe_state <= hold;
+                    end
                 hold: 
                     if (mem_allowin)
                         exe_state <= stall_flag ? expired : (new_entry ? fresh : expired);

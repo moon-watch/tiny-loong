@@ -440,7 +440,7 @@ module id_stage (
     assign  final_rj    = rj_blocked    ? forwrd_rj    : rj_data;
     assign  final_rk_rd = rk_rd_blocked ? forwrd_rk_rd : rk_rd_data;
 //wb_info
-    assign wb_src[0]    = ~(|wb_src[4:1]);
+    assign wb_src[0]    = ~(|wb_src[4:1]);  //fake circular comb logic, to do :(
     assign wb_src[1]    = inst_rdcntid;
     assign wb_src[2]    = inst_rdcntvl_w;
     assign wb_src[3]    = inst_rdcntvh_w;
@@ -763,7 +763,7 @@ module id_stage (
     assign id_is_fresh  = is_fresh;
     assign id_flush     = inst_ibar | inst_tlbsrch | inst_tlbrd | inst_tlbwr | inst_tlbfill | inst_invtlb | inst_csrwr | inst_csrxchg | inst_ertn;
     assign any_excp     = if_any_ex_reg | id_any_ex;
-    assign stall_now    = any_excp | id_flush;
+    assign stall_now    = any_excp | id_flush;  //id doesn't need stall, can be removed, to do :(
     assign src_ok       = (need_rj    ? (rj_blocked    ? forwrd_rj_rdy    : 1'b1) : 1'b1)
                         & (need_rk_rd ? (rk_rd_blocked ? forwrd_rk_rd_rdy : 1'b1) : 1'b1);
     assign id_ready_go  = is_hold || (is_fresh && (any_excp || src_ok));
@@ -786,14 +786,17 @@ module id_stage (
                     if (new_entry)
                         id_state <= fresh;
                 fresh:
-                    if (stall_now) begin    //wait for src_ok if stall for id_flush
-                        id_state    <= (exe_allowin && (any_excp || src_ok)) ? expired : hold;
-                    end else if (id_ready_go)
-                        if (exe_allowin) begin
-                            if (~new_entry)
-                                id_state <= expired;
-                        end else
-                            id_state <= hold;
+                    if (id_ready_go) begin
+                        if (stall_now)
+                            id_state <= exe_allowin ? expired : hold;
+                        else begin
+                            if (exe_allowin) begin
+                                if (~new_entry)
+                                    id_state <= expired;
+                            end else
+                                id_state <= hold;
+                        end
+                    end
                 hold: 
                     if (exe_allowin)
                         id_state <= stall_flag ? expired : (new_entry ? fresh : expired);

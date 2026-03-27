@@ -223,12 +223,13 @@ module if_stage (
                 fresh:
                     if (stall_now)
                         if_state    <= id_allowin ? expired : hold;
-                    else if (if_ready_go)
+                    else if (if_ready_go) begin
                         if (id_allowin) begin
                             if (~new_entry)
                                 if_state <= expired;
                         end else
                             if_state <= hold;
+                    end
                 hold:
                     if (id_allowin)
                         if_state <= stall_flag ? expired : (new_entry ? fresh : expired);

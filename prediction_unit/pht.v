@@ -8,7 +8,6 @@ module pht (
     input  wire       pht1_taken
 );
     reg [ 1:0] sat_cnt[255:0];
-    reg [31:0] bias_bit;
     reg [ 1:0] cnt_next;
     always @(*) begin
         case ({pht1_taken, sat_cnt[pht1_idx]})

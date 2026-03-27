@@ -325,9 +325,10 @@ module mem_stage (
                 fresh:
                     if (stall_now)
                         mem_state <= expired;
-                    else if (mem_ready_go)
+                    else if (mem_ready_go) begin
                         if (~new_entry)
                             mem_state <= expired;
+                    end
             endcase
         end
     end

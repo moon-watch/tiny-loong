@@ -138,10 +138,6 @@ wire [ 7:0] hw_int_in = intrpt;
     //ras
     wire [31:0] rtn_target;
     wire [ 2:0] ras_chkpt;
-    //bhr
-    wire         bhr_rllbk;
-    wire [ 7:0]  bhr_rlbk_ckpt;
-    wire [ 7:0]  bhr_chkpt;
     //pht
     wire [7:0] pht0_idx;
     wire       pht0_taken;
@@ -953,152 +949,160 @@ wire [ 7:0] hw_int_in = intrpt;
 `define es u_exe_stage
 `define ds u_id_stage
 `define ms u_mem_stage
-`define wb u_wb_stage
+`define ws u_wb_stage
 `define csr u_csr
+`define regs u_regfile
+    integer i;
     //inst commit
-    reg         wb_is_fresh         = 1'b0;
-    reg  [31:0] wb_pc_reg           = 32'b0;
-    reg  [31:0] exe_inst            = 32'b0;
-    reg  [31:0] mem_inst            = 32'b0;
-    reg  [31:0] wb_inst             = 32'b0;
-    reg         wb_tlbfill          = 1'b0;
-    reg  [ 3:0] wb_tlbfill_index    = 4'b0;
-    reg         wb_cntinst          = 1'b0;
-    reg  [63:0] wb_timer64          = 64'b0;
-    reg         wb_gr_we            = 1'b0;
-    reg  [ 4:0] wb_gr_addr          = 5'b0;
-    reg  [31:0] wb_gr_wdata         = 32'b0;
-    reg         wb_csr_rstat        = 1'b0;
-    reg  [31:0] wb_csr_rvalue       = 32'b0;
+    reg         commit_valid        = 1'b0;
+    reg  [31:0] commit_pc           = 32'b0;
+    reg  [31:0] commit_inst [3:0];
+    initial
+        for (i = 0; i < 4; i = i + 1)
+            commit_inst[i] = 32'b0;
+    reg         commit_tlbfill      = 1'b0;
+    reg  [ 3:0] commit_tlbfill_idx  = 4'b0;
+    reg         commit_cntinst      = 1'b0;
+    reg  [63:0] commit_timer64      = 64'b0;
+    reg         commit_gr_we        = 1'b0;
+    reg  [ 4:0] commit_gr_addr      = 5'b0;
+    reg  [31:0] commit_gr_wdata     = 32'b0;
+    reg         commit_csr_rstat    = 1'b0;
+    reg  [31:0] commit_csr_rval     = 32'b0;
     always @(posedge clk) begin
-        wb_is_fresh <= `wb.is_fresh;
-        wb_pc_reg   <= `wb.pc_reg;
+        commit_valid    <= `ws.is_fresh;
+        commit_pc       <= `ws.pc_reg;
         if (`es.new_entry)
-            exe_inst    <= `ds.inst_reg;
+            commit_inst[0]  <= `ds.inst_reg;
         if (`ms.new_entry)
-            mem_inst    <= exe_inst;
-        if (`wb.new_entry)
-            wb_inst     <= mem_inst;
-        wb_tlbfill          <= `wb.tlb_inst_reg[3];
-        wb_tlbfill_index    <= `wb.tlb_w_index;
-        wb_cntinst          <= |`wb.wb_src_reg[3:1];
-        wb_timer64          <= `wb.timer64_r;
-        wb_gr_we            <= `wb.gr_wr_en;
-        wb_gr_addr          <= `wb.gr_wr_addr;
-        wb_gr_wdata         <= `wb.gr_wr_data;
-        wb_csr_rstat        <= `wb.wb_src_reg[4] && `wb.csr_num == `CSR_ESTAT;
-        wb_csr_rvalue       <= `wb.csr_rvalue;
+            commit_inst[1]  <= commit_inst[0];
+        if (`ws.new_entry)
+            commit_inst[2]  <= commit_inst[1];
+        commit_inst[3]      <= commit_inst[2];
+        commit_tlbfill      <= `ws.tlb_inst_reg[3];
+        commit_tlbfill_idx  <= `ws.tlb_w_index;
+        commit_cntinst      <= |`ws.wb_src_reg[3:1];
+        commit_timer64      <= `ws.timer64_r;
+        commit_gr_we        <= `ws.gr_wr_en;
+        commit_gr_addr      <= `ws.gr_wr_addr;
+        commit_gr_wdata     <= `ws.gr_wr_data;
+        commit_csr_rstat    <= `ws.wb_src_reg[4] && `ws.csr_num == `CSR_ESTAT;
+        commit_csr_rval     <= `ws.csr_rvalue;
     end
     DifftestInstrCommit DifftestInstrCommit(
-        .clock              (clk                    ),
-        .coreid             (`csr.csr_cpuid[8:0]    ),
-        .index              (0                      ),
-        .valid              (wb_is_fresh            ),
-        .pc                 (wb_pc_reg              ),
-        .instr              (wb_inst                ),
-        .skip               (0                      ),
-        .is_TLBFILL         (wb_tlbfill             ),
-        .TLBFILL_index      (wb_tlbfill_index       ),
-        .is_CNTinst         (wb_cntinst             ),
-        .timer_64_value     (wb_timer64             ),
-        .wen                (wb_gr_we               ),
-        .wdest              (wb_gr_addr             ),
-        .wdata              (wb_gr_wdata            ),
-        .csr_rstat          (wb_csr_rstat           ),
-        .csr_data           (wb_csr_rvalue          )
+        .clock              (clk                ),
+        .coreid             (`csr.csr_cpuid[8:0]),
+        .index              (0                  ),
+        .valid              (commit_valid       ),
+        .pc                 (commit_pc          ),
+        .instr              (commit_inst[3]     ),
+        .skip               (0                  ),
+        .is_TLBFILL         (commit_tlbfill     ),
+        .TLBFILL_index      (commit_tlbfill_idx ),
+        .is_CNTinst         (commit_cntinst     ),
+        .timer_64_value     (commit_timer64     ),
+        .wen                (commit_gr_we       ),
+        .wdest              (commit_gr_addr     ),
+        .wdata              (commit_gr_wdata    ),
+        .csr_rstat          (commit_csr_rstat   ),
+        .csr_data           (commit_csr_rval    )
     );
     //excp
-    reg wb_any_excp = 1'b0;
-    reg wb_ertn = 1'b0;
+    reg commit_excp_valid = 1'b0;
+    reg commit_eret       = 1'b0;
     always @(posedge clk) begin
-        wb_any_excp <= `wb.any_excp_reg && ~`wb.recovery_mode;
-        wb_ertn <= `wb.ertn_flush;
+        commit_excp_valid <= `ws.any_excp_reg && ~`ws.recovery_mode;
+        commit_eret       <= `ws.ertn_flush;
     end
     DifftestExcpEvent DifftestExcpEvent(
-        .clock              (clk                    ),
-        .coreid             (`csr.csr_cpuid[8:0]    ),
-        .excp_valid         (wb_any_excp            ),
-        .eret               (wb_ertn                ),
-        .intrNo             (`csr.csr_estat[12:2]   ),
-        .cause              (`csr.csr_estat_ecode   ),
-        .exceptionPC        (wb_pc_reg              ),
-        .exceptionInst      (wb_inst                )
+        .clock              (clk                 ),
+        .coreid             (`csr.csr_cpuid[8:0] ),
+        .excp_valid         (commit_excp_valid   ),
+        .eret               (commit_eret         ),
+        .intrNo             (`csr.csr_estat[12:2]),
+        .cause              (`csr.csr_estat_ecode),
+        .exceptionPC        (commit_pc           ),
+        .exceptionInst      (commit_inst[3]      )
     );
     //trap (unused)
     DifftestTrapEvent DifftestTrapEvent(
-        .clock              (clk                    ),
-        .coreid             (`csr.csr_cpuid[8:0]    ),
-        .valid              (1'b0                   ),
-        .code               (                       ),
-        .pc                 (                       ),
-        .cycleCnt           (                       ),
-        .instrCnt           (                       )
+        .clock              (clk                ),
+        .coreid             (`csr.csr_cpuid[8:0]),
+        .valid              (1'b0               ),
+        .code               (                   ),
+        .pc                 (                   ),
+        .cycleCnt           (                   ),
+        .instrCnt           (                   )
     );
     //store
-    reg         wb_sc_w      = 1'b0;
-    reg         wb_st_w      = 1'b0;
-    reg         wb_st_h      = 1'b0;
-    reg         wb_st_b      = 1'b0;
-    reg  [ 3:0] exe_st_bus   = 4'b0;
-    reg  [ 3:0] mem_st_bus   = 4'b0;
-    reg  [ 3:0] wb_st_bus    = 4'b0;
-    reg         wb_llbit     = 1'b0;
-    reg  [31:0] wb_mem_vaddr  = 32'b0;
-    reg  [31:0] wb_mem_paddr  = 32'b0;
-    reg  [31:0] mem_st_wdata = 32'b0;
-    reg  [31:0] wb_st_wdata  = 32'b0;
-    reg  [31:0] mem_vaddr     = 32'b0;
-    reg  [31:0] mem_paddr     = 32'b0;
-    reg  [31:0] st_wdata     = 32'b0;
+    reg         sc_w      = 1'b0;
+    reg         st_w      = 1'b0;
+    reg         st_h      = 1'b0;
+    reg         st_b      = 1'b0;
+    reg  [ 3:0] st_bus [2:0];
+    reg  [31:0] mem_vaddr[1:0];
+    reg  [31:0] mem_paddr[1:0];
+    reg  [31:0] mem_wdata[2:0];
+    initial
+        for (i = 0; i < 2; i = i + 1) begin
+            mem_vaddr[i] = 32'b0;
+            mem_paddr[i] = 32'b0;
+        end
+    initial
+        for (i = 0; i < 3; i = i + 1) begin
+            st_bus[i]    = 4'b0;
+            mem_wdata[i] = 32'b0;
+        end
+    reg         llbit     = 1'b0;
     always @(posedge clk) begin
         if (`es.new_entry)
-            exe_st_bus <= {`ds.inst_sc_w, `ds.inst_st_w, `ds.inst_st_h, `ds.inst_st_b};
+            st_bus[0] <= {`ds.inst_sc_w, `ds.inst_st_w, `ds.inst_st_h, `ds.inst_st_b};
         if (`ms.new_entry) begin
-            mem_st_wdata <= `es.dcache_wdata;
-            mem_st_bus <= exe_st_bus;
+            mem_wdata[0] <= `es.dcache_wdata;
+            st_bus[1] <= st_bus[0];
         end
-        if (`wb.new_entry) begin
-            wb_mem_vaddr <= `ms.exe_result_reg;
-            wb_mem_paddr <= `ms.physical_addr;
-            wb_st_wdata <= mem_st_wdata;
-            wb_st_bus <= mem_st_bus;
+        if (`ws.new_entry) begin
+            mem_vaddr[0] <= `ms.exe_result_reg;
+            mem_paddr[0] <= `ms.physical_addr[31:0];
+            mem_wdata[1] <= mem_wdata[0];
+            st_bus[2] <= st_bus[1];
         end
-        {wb_sc_w, wb_st_w, wb_st_h, wb_st_b} <= wb_st_bus & {4{~`wb.any_excp_reg & `wb.is_fresh}};
-        wb_llbit <= `csr.llbit;
-        mem_vaddr <= wb_mem_vaddr;
-        mem_paddr <= wb_mem_paddr;
-        st_wdata <= wb_st_wdata;
+        {sc_w, st_w, st_h, st_b} <= st_bus[2] & {4{~`ws.any_excp_reg & `ws.is_fresh}};
+        llbit <= `csr.llbit;
+        mem_vaddr[1] <= mem_vaddr[0];
+        mem_paddr[1] <= mem_paddr[0];
+        mem_wdata[2] <= mem_wdata[1];
     end
     DifftestStoreEvent DifftestStoreEvent(
         .clock              (clk                ),
         .coreid             (`csr.csr_cpuid[8:0]),
         .index              (0                  ),
-        .valid              ({4'b0, wb_llbit && wb_sc_w, wb_st_w, wb_st_h, wb_st_b}),
-        .storePAddr         (mem_paddr           ),
-        .storeVAddr         (mem_vaddr           ),
-        .storeData          (st_wdata           )
+        .valid              ({4'b0, llbit && sc_w, st_w, st_h, st_b}),
+        .storePAddr         (mem_paddr[1]       ),
+        .storeVAddr         (mem_vaddr[1]       ),
+        .storeData          (mem_wdata[2]       )
     );
     //load
-    reg  [ 5:0] exe_ld_bus  = 6'b0;
-    reg  [ 5:0] mem_ld_bus  = 6'b0;
-    reg  [ 5:0] wb_ld_bus   = 6'b0;
-    reg  [ 5:0] ld_bus      = 6'b0;
+    reg  [ 5:0] ld_bus[3:0];
+    initial
+        for (i = 0; i < 4; i = i + 1)
+            ld_bus[i] = 6'b0;
     always @(posedge clk) begin
         if (`es.new_entry)
-            exe_ld_bus <= {`ds.inst_ll_w, `ds.inst_ld_w, `ds.inst_ld_hu, `ds.inst_ld_h, `ds.inst_ld_bu, `ds.inst_ld_b};
+            ld_bus[0] <= {`ds.inst_ll_w, `ds.inst_ld_w, `ds.inst_ld_hu, `ds.inst_ld_h, `ds.inst_ld_bu, `ds.inst_ld_b};
         if (`ms.new_entry)
-            mem_ld_bus <= exe_ld_bus;
-        if (`wb.new_entry)
-            wb_ld_bus <= mem_ld_bus;
-        ld_bus <= wb_ld_bus & {6{~`wb.any_excp_reg & `wb.is_fresh}};
+            ld_bus[1] <= ld_bus[0];
+        if (`ws.new_entry)
+            ld_bus[2] <= ld_bus[1];
+        ld_bus[3] <= ld_bus[2] & {6{~`ws.any_excp_reg & `ws.is_fresh}};
     end
     DifftestLoadEvent DifftestLoadEvent(
         .clock              (clk                ),
         .coreid             (`csr.csr_cpuid[8:0]),
         .index              (0                  ),
-        .valid              ({2'b0, ld_bus}     ),
-        .paddr              (mem_paddr          ),
-        .vaddr              (mem_vaddr          )
+        .valid              ({2'b0, ld_bus[3]}  ),
+        .paddr              (mem_paddr[1]       ),
+        .vaddr              (mem_vaddr[1]       )
     );
     //csr
     DifftestCSRRegState DifftestCSRRegState(
@@ -1133,7 +1137,6 @@ wire [ 7:0] hw_int_in = intrpt;
         .dmw1               (`csr.csr_dmw1    )
     );
     //regfile
-`define regs u_regfile
     DifftestGRegState DifftestGRegState(
         .clock              (clk                ),
         .coreid             (`csr.csr_cpuid[8:0]),

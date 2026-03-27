@@ -30,11 +30,9 @@ module forwarding_unit (
     reg [ 2:0] ptr_reg[31:0];
     reg [ 2:0] src_reg[31:0];
     reg [31:0] valid;
-    wire [2:0] ready_bus;
     assign ptr_out      = ptr;
     assign blocked1     = valid[query1];
     assign blocked2     = valid[query2];
-    assign ready_bus    = {wb_ready, mem_ready, exe_ready};
     assign ready1 = ((ptr_reg[query1] == exe_ptr) & exe_ready)
                   | ((ptr_reg[query1] == mem_ptr) & mem_ready)
                   | ((ptr_reg[query1] == wb_ptr ) & wb_ready );
@@ -47,7 +45,6 @@ module forwarding_unit (
     assign result2 = ({32{src_reg[query2][0]}} & exe_res)
                    | ({32{src_reg[query2][1]}} & mem_res)
                    | ({32{src_reg[query2][2]}} & wb_res );
-    integer i;
     always @(posedge clk) begin
         if (rst) begin
             ptr <= 3'b100;

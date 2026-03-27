@@ -29,7 +29,7 @@ module divider (
     reg  [31:0] quotient_reg;
     reg         result_ready_reg;
     reg  [4:0]  step_cnt;
-    wire [32:0] sub_result;
+    wire [31:0] sub_result;
     wire        cout;
 //div
     assign  repeated        = (last_dividend == dividend) && (last_divisor == divisor) && init_flag;
@@ -37,7 +37,7 @@ module divider (
     assign  quotient        = quotient_sig ? (~quotient_reg + 1'b1) : quotient_reg;
     assign  remainder       = remainder_sig ? (~dividend_reg[63:32] + 1'b1) : dividend_reg[63:32];
     assign  result_ready    = result_ready_reg | repeated_ready;
-    assign  {cout, sub_result} = dividend_reg[63:31] + ~divisor_reg + 1'b1;     //to do widthexpand :(
+    assign  {cout, sub_result} = dividend_reg[63:31] + ~divisor_reg + 1'b1;
     always @(posedge clk) begin
         if (rst || ex_flush) begin
             init_flag           <= 1'b0;
@@ -83,7 +83,7 @@ module divider (
                         dividend_reg <= dividend_reg << 1;
                         quotient_reg <= quotient_reg << 1;
                     end else begin
-                        dividend_reg <= {sub_result[31:0], dividend_reg[30:0], 1'b0};
+                        dividend_reg <= {sub_result, dividend_reg[30:0], 1'b0};
                         quotient_reg <= {quotient_reg[30:0], 1'b1};
                     end
                 end
