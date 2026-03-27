@@ -970,7 +970,7 @@ wire [ 7:0] hw_int_in = intrpt;
     reg         commit_csr_rstat    = 1'b0;
     reg  [31:0] commit_csr_rval     = 32'b0;
     always @(posedge clk) begin
-        commit_valid    <= `ws.is_fresh;
+        commit_valid    <= `ws.is_fresh && ~`ws.any_excp_reg;
         commit_pc       <= `ws.pc_reg;
         if (`es.new_entry)
             commit_inst[0]  <= `ds.inst_reg;

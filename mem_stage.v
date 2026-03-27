@@ -70,7 +70,6 @@ module mem_stage (
     reg  [ 1:0] mem_state;
     wire        is_expired = mem_state[0];
     wire        is_fresh   = mem_state[1];
-    reg         recovery_mode;
     wire        cacop_ok;
     reg  [31:0] ll_target_reg;
     reg         ll_running_reg;
@@ -267,7 +266,7 @@ module mem_stage (
         mem_ex_bus
     };
 //fsm
-    assign ll_running   = ll_running_reg || (mem_isll_reg && ~recovery_mode);
+    assign ll_running   = ll_running_reg || (mem_isll_reg && is_fresh);
     assign preld_valid  = direct_access ? crmd_datm[0] : (dmw_hit ? (dmw0_hit ? dmw0_mat[0] : dmw1_mat[0])
                         : (tlb_found & tlb_v & ((crmd_plv == 2'd3 && tlb_plv == 2'd3) || crmd_plv == 2'd0) & tlb_mat[0]));
     assign sc_valid     = (physical_addr[31:0] == ll_target_reg) & llbit;
@@ -294,11 +293,6 @@ module mem_stage (
                                         | (~(mem_has_req_reg | cacop_valid_reg)));              //others
     assign new_entry    = mem_allowin & exe_ready_go;
     always @(posedge clk) begin
-        if (rst || ex_flush)
-            recovery_mode <= 1'b1;
-        else if (new_entry)
-            recovery_mode <= 1'b0;
-
         if (rst || ex_flush || idle_flush)
             stall_flag <= 1'b0;
         else if (is_fresh && stall_now)

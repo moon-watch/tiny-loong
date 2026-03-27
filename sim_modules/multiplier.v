@@ -6,5 +6,5 @@ module multiplier (
     input  wire        ce,
     output wire [65:0] p
 );
-    assign p = a * b;
+    assign p = $signed(a) * $signed(b);
 endmodule

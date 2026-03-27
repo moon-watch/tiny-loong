@@ -114,7 +114,6 @@ module exe_stage (
     wire [ 2:0] btb_type;
     //cache
     wire        cacop_req_ok;
-    wire        mem_normal;
     wire        mem_valid;
     wire [ 3:0] byte_mask;
     wire [ 3:0] hlfwd_mask;
@@ -243,9 +242,8 @@ module exe_stage (
     assign dcache_cacop_tagt_way = quick_sum[0];
     assign dcache_index          = quick_sum[11:4];
     assign dcache_op             = mem_st_reg;  //1: store, 0: load
-    assign mem_normal            = mem_ld_reg | mem_st_reg;
     assign mem_valid             = ((mem_isll_reg | mem_issc_reg) & ~ll_running)
-                                 | mem_normal | mem_ispreld_reg;
+                                 | mem_ld_reg | mem_st_reg | mem_ispreld_reg;
     assign dcache_valid          = is_fresh & mem_valid & ~any_excp;
     assign dcache_wdata          = ({32{mem_len_reg[0] &  byte_mask[0]}} & {24'b0, rd_value_reg[7:0]})    //migrate to dcache?
                                  | ({32{mem_len_reg[0] &  byte_mask[1]}} & {16'b0, rd_value_reg[7:0], 8'b0})
@@ -330,8 +328,8 @@ module exe_stage (
     assign stall_now    = any_excp | id_flush_reg;
     assign exe_ready_go = is_hold | (is_fresh & (any_excp                                 //excp
                                     | (cacop_valid_reg & cacop_req_ok)                    //cacop
-                                    | (mem_valid & dcache_addr_ok)                        //mem
-                                    | (~(cacop_valid_reg | mem_valid) & alu_res_ready))); //others
+                                    | (mem_has_req & dcache_addr_ok)                        //mem
+                                    | (~(cacop_valid_reg | mem_has_req) & alu_res_ready))); //others
     assign exe_allowin  = ((is_expired & ~stall_flag) | (exe_ready_go & mem_allowin)) & ~pred_flush;
     assign new_entry    = id_ready_go & exe_allowin;
     always @(posedge clk) begin
