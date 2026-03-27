@@ -12,7 +12,7 @@
 
 ## 集成指南
 
-处理器核对外接口为AXI，集成时需将sim_modules下的模块替换为已有ip或其他实现，例如data_bank_ram需替换为相应规格的ram模块。
+处理器核对外接口为AXI，集成时需将sim_modules下的模块替换为已有ip或其他实现，例如data_bank_ram需替换为相应规格的ram模块，并注释掉cpu_config.h中的DIFF_TEST_EN，有关difftest的详细信息请参考[loongson-chiplab](https://chiplab.readthedocs.io/zh-cn/latest/)。
 
 ## 整体架构
 
