@@ -33,6 +33,7 @@ module mem_stage (
     input  wire         tlb_d,
     input  wire         tlb_v,
     //prev_stage
+    output wire         allow_mem,  //block mem_req when there is an ongoing icache_cacop, sucks :(
     output wire         mem_any_ex,
     output wire         ll_running,
     input  wire [`EXE_BUS_W - 1:0] exe2mem_bus,
@@ -230,7 +231,7 @@ module mem_stage (
     assign pc           = pc_reg;
     assign forwrd_on_wb = forwrd_on_wb_reg;
     assign rj_value     = rj_value_reg;
-    assign rd_value     = any_excp ? exe_result_reg : rd_value_reg; //vaddr
+    assign rd_value     = mem_any_ex ? exe_result_reg : rd_value_reg; //vaddr
     assign rd_addr      = rd_addr_reg;
     assign mem_isll     = mem_isll_reg;
     assign tlb_inst     = tlb_inst_reg;
@@ -286,6 +287,7 @@ module mem_stage (
                         | ({32{~(mem_res_ld_reg | mem_issc_reg)}} & exe_result_reg);
     assign any_excp    = if_any_ex_reg | id_any_ex_reg | mem_any_ex;
     assign stall_now   = any_excp | id_flush_reg | id_isidle_reg;
+    assign allow_mem   = (cacop_valid_reg & cacop_target_reg) ? icache_cacop_ok : 1'b1;   //Sucks :(
     assign mem_allowin  = (is_expired & ~stall_flag) | (mem_ready_go & ~stall_now & wb_allowin);
     assign mem_ready_go = is_fresh & (any_excp                                                  //excp
                                         | (mem_has_req_reg & (mem_invalid | dcache_data_ok))    //mem

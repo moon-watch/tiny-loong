@@ -183,7 +183,7 @@ module if_stage (
     assign icache_offset_buf  = physical_addr[3:0];
 //fsm
     assign any_excp     = if_any_ex;
-    assign stall_now    = any_excp;
+    assign stall_now    = any_excp; //if doesn't need stall, can be removed, to do :(
     assign fetch_valid  = (is_expired && ~stall_flag) || ((is_fresh || is_hold) && id_allowin);
     assign mem_cancel   = is_fresh && (any_excp || cacop_valid);
     assign new_entry    = fetch_valid && icache_addr_ok && ~mem_cancel;

@@ -198,7 +198,7 @@ module wb_stage (
 //excp
     assign wb_ex        = any_excp_reg & ~recovery_mode;
     assign wb_pc        = pc_reg;
-    assign wb_vaddr     = rd_value_reg;
+    assign wb_vaddr     = if_any_ex_reg ? pc_reg : rd_value_reg;
     assign ex_flush     = (any_excp_reg | id_flush_reg) & ~recovery_mode;
     assign ertn_flush   = ~any_excp_reg & id_isertn_reg & ~recovery_mode;
     assign idle_flush   = id_isidle_reg & has_int;

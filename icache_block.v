@@ -77,7 +77,7 @@ module icache_block (
     reg         cacop_accepted;
     reg         cacop_ok_reg;
 //cpu_interface
-    assign addr_ok = (is_rdlookup & hit) | ((is_idle | is_sucok) & ~(cacop_valid | cacop_accepted));
+    assign addr_ok = (is_rdlookup & hit & ~cacop_accepted) | ((is_idle | is_sucok) & ~(cacop_valid | cacop_accepted));
     assign data_ok = (is_rdlookup & hit) | is_sucok;
     assign rdata   = mat ? (hit_way ? way1_rd_data[offset_buf[3:2]] : way0_rd_data[offset_buf[3:2]])
                          : wb_buf;
@@ -176,11 +176,12 @@ module icache_block (
                                 mat_buf         <= mat;
                                 index_buf       <= index_buf_;
                                 tag_buf         <= tag;
-                                tag_we_reg      <= 1'b1;
                                 rf_req_reg      <= 1'b1;
                                 axi_arvalid_reg <= 1'b1;
-                                if (mat)
+                                if (mat) begin
+                                    tag_we_reg      <= 1'b1;
                                     v_value[target_way][index_buf] <= 1'b1;
+                                end
                             end
                         end
                 end

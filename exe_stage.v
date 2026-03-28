@@ -22,6 +22,7 @@ module exe_stage (
     input  wire         id_ready_go,
     output wire         exe_allowin,
     //next_stage
+    input  wire         allow_mem,
     input  wire         mem_any_ex,
     input  wire         ll_running,
     output wire [`EXE_BUS_W - 1:0] exe2mem_bus,
@@ -244,7 +245,7 @@ module exe_stage (
     assign dcache_op             = mem_st_reg;  //1: store, 0: load
     assign mem_valid             = ((mem_isll_reg | mem_issc_reg) & ~ll_running)
                                  | mem_ld_reg | mem_st_reg | mem_ispreld_reg;
-    assign dcache_valid          = is_fresh & mem_valid & ~any_excp;
+    assign dcache_valid          = is_fresh & allow_mem & mem_valid & ~any_excp;
     assign dcache_wdata          = ({32{mem_len_reg[0] &  byte_mask[0]}} & {24'b0, rd_value_reg[7:0]})    //migrate to dcache?
                                  | ({32{mem_len_reg[0] &  byte_mask[1]}} & {16'b0, rd_value_reg[7:0], 8'b0})
                                  | ({32{mem_len_reg[0] &  byte_mask[2]}} & {8'b0, rd_value_reg[7:0], 16'b0})
@@ -325,10 +326,10 @@ module exe_stage (
     };
 //fsm
     assign any_excp     = if_any_ex_reg | id_any_ex_reg | mem_any_ex;
-    assign stall_now    = any_excp | id_flush_reg;
+    assign stall_now    = any_excp | id_flush_reg | id_isidle_reg;
     assign exe_ready_go = is_hold | (is_fresh & (any_excp                                 //excp
                                     | (cacop_valid_reg & cacop_req_ok)                    //cacop
-                                    | (mem_has_req & mem_valid & dcache_addr_ok)          //mem, sucks :(
+                                    | (mem_has_req & dcache_valid & dcache_addr_ok)       //mem, sucks :(
                                     | (~(cacop_valid_reg | mem_has_req) & alu_res_ready))); //others, optimize generation of this condition, to do :(
     assign exe_allowin  = ((is_expired & ~stall_flag) | (exe_ready_go & mem_allowin)) & ~pred_flush;
     assign new_entry    = id_ready_go & exe_allowin;

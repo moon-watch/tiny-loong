@@ -313,8 +313,7 @@ module csr #(
                             || wb_ecode == `ECODE_PPI;
     always @(posedge clk) begin
         if (wb_ex && wb_ex_addr_err)
-            csr_badv_vaddr <= (wb_ecode == `ECODE_ADE &&
-                               wb_esubcode == `ESUBCODE_ADEF) ? wb_pc : wb_vaddr;
+            csr_badv_vaddr <= wb_vaddr;
         else if (csr_we && csr_num == `CSR_BADV)
             csr_badv_vaddr <= csr_wmask[`CSR_BADV_VADDR] & csr_wvalue[`CSR_BADV_VADDR]
                            | ~csr_wmask[`CSR_BADV_VADDR] & csr_badv_vaddr;
