@@ -209,8 +209,7 @@ module mem_stage (
     assign dcache_op_buf            = mem_st_reg;
     assign dcache_mem_cancel        = mem_cancel;
     assign icache_cacop_target_tag  = physical_addr[31:12];
-    assign cacop_ok                 = ( cacop_target_reg & icache_cacop_ok)
-                                    | (~cacop_target_reg & dcache_cacop_ok);
+    assign cacop_ok                 = icache_cacop_ok | dcache_cacop_ok;
 //excp
     assign pil_inst     = mem_ld_reg | mem_isll_reg | cacop_op2_reg;
     assign pis_inst     = mem_st_reg | mem_issc_reg;
@@ -290,8 +289,8 @@ module mem_stage (
     assign any_excp    = if_any_ex_reg | id_any_ex_reg | mem_any_ex;
     assign stall_now   = any_excp | id_flush_reg | id_isidle_reg;
     assign allow_mem   = (is_fresh & cacop_valid_reg & cacop_target_reg) ? icache_cacop_ok : 1'b1;   //Sucks :(
-    assign allow_icacop = (is_fresh & (mem_has_req_reg | (cacop_valid_reg & ~cacop_target_reg))) ?
-                            (mem_invalid | dcache_data_ok | dcache_cacop_ok) : 1'b1;   //Sucks :( maybe can just use mem_ready_go
+    assign allow_icacop = (is_fresh & (mem_has_req_reg | cacop_valid_reg)) ?
+                            (mem_invalid | dcache_data_ok | cacop_ok) : 1'b1;   //Sucks :( maybe can just use mem_ready_go
     assign allow_dcacop = (is_fresh & cacop_valid_reg & cacop_target_reg) ? icache_cacop_ok : 1'b1; //Sucks :(
     assign mem_allowin  = (is_expired & ~stall_flag) | (mem_ready_go & ~stall_now & wb_allowin);
     assign mem_ready_go = is_fresh & (any_excp                                                  //excp
