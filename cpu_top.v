@@ -221,6 +221,7 @@ wire [ 7:0] hw_int_in = intrpt;
     wire         mem_allowin;
     wire         mem_ready_go;
     wire         allow_mem;
+    wire         allow_icacop;
     wire         mem_any_ex;
     wire         ll_running;
     wire [`MEM_BUS_W - 1:0] mem2wb_bus;
@@ -732,6 +733,7 @@ wire [ 7:0] hw_int_in = intrpt;
         .exe_ready_go            (exe_ready_go           ),
         .mem_allowin             (mem_allowin            ),
         .allow_mem               (allow_mem              ),
+        .allow_icacop            (allow_icacop           ),
         .mem_any_ex              (mem_any_ex             ),
         .ll_running              (ll_running             ),
         .icache_cacop_valid      (exe2if_cacop_valid     ),
@@ -789,6 +791,7 @@ wire [ 7:0] hw_int_in = intrpt;
         .exe_ready_go  (exe_ready_go  ),
         .mem_allowin   (mem_allowin   ),
         .allow_mem     (allow_mem     ),
+        .allow_icacop  (allow_icacop  ),
         .mem_any_ex    (mem_any_ex    ),
         .ll_running    (ll_running    ),
         .wb_need_tlb   (wb_need_tlb   ),
