@@ -22,6 +22,7 @@ module divider (
     reg         remainder_sig;
     reg  [31:0] last_dividend;
     reg  [31:0] last_divisor;
+    reg         last_sign;
     wire        repeated;
     wire        repeated_ready;
     reg  [63:0] dividend_reg;
@@ -32,7 +33,7 @@ module divider (
     wire [31:0] sub_result;
     wire        cout;
 //div
-    assign  repeated        = (last_dividend == dividend) && (last_divisor == divisor) && init_flag;
+    assign  repeated        = (dividend == last_dividend) && (divisor == last_divisor) && (u_sig == last_sign) && init_flag;
     assign  repeated_ready  = is_detect & repeated & start;
     assign  quotient        = quotient_sig ? (~quotient_reg + 1'b1) : quotient_reg;
     assign  remainder       = remainder_sig ? (~dividend_reg[63:32] + 1'b1) : dividend_reg[63:32];
@@ -55,6 +56,7 @@ module divider (
                     if (start) begin
                         last_dividend <= dividend;
                         last_divisor  <= divisor;
+                        last_sign     <= u_sig;
                         if (!repeated) begin
                             div_state <= proc;
                             step_cnt  <= 5'd31;

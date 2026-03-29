@@ -766,7 +766,7 @@ module id_stage (
     assign stall_now    = any_excp | id_flush;  //id doesn't need stall, can be removed, to do :(
     assign src_ok       = (need_rj    ? (rj_blocked    ? forwrd_rj_rdy    : 1'b1) : 1'b1)
                         & (need_rk_rd ? (rk_rd_blocked ? forwrd_rk_rd_rdy : 1'b1) : 1'b1);
-    assign id_ready_go  = is_hold || (is_fresh && (any_excp || src_ok));
+    assign id_ready_go  = (is_hold && (stall_flag || src_ok)) || (is_fresh && (any_excp || src_ok));
     assign id_allowin   = (is_expired && ~stall_flag) || (id_ready_go && exe_allowin);
     assign new_entry    = if_ready_go && id_allowin;
     always @(posedge clk) begin
@@ -797,7 +797,7 @@ module id_stage (
                                 id_state <= hold;
                         end
                     end
-                hold: 
+                hold:   //is hold state really needed?
                     if (exe_allowin)
                         id_state <= stall_flag ? expired : (new_entry ? fresh : expired);
             endcase

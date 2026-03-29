@@ -211,7 +211,8 @@ module dcache_block (
                             if (cacop_op[1]) begin
                                 target_way_reg <= cacop_target_way;
                                 v_value[cacop_target_way][index] <= 1'b0;
-                                if (d_value[cacop_target_way][index]) begin
+                                if (d_value[cacop_target_way][index]
+                                    & v_value[cacop_target_way][index]) begin
                                     cache_state <= refill;
                                     wb_req_reg <= 1'b1;
                                     axi_awvalid_reg <= 1'b1;

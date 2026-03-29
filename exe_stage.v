@@ -24,6 +24,7 @@ module exe_stage (
     //next_stage
     input  wire         allow_mem,
     input  wire         allow_icacop,
+    input  wire         allow_dcacop,
     input  wire         mem_any_ex,
     input  wire         ll_running,
     output wire [`EXE_BUS_W - 1:0] exe2mem_bus,
@@ -239,7 +240,7 @@ module exe_stage (
     assign icache_cacop_op       = cacop_op_reg;
     assign icache_cacop_tagt_idx = quick_sum[11:4];
     assign icache_cacop_tagt_way = quick_sum[0];
-    assign dcache_cacop_valid    = is_fresh && cacop_valid_reg && ~any_excp && ~cacop_target_reg;
+    assign dcache_cacop_valid    = is_fresh && cacop_valid_reg && ~any_excp && ~cacop_target_reg && allow_dcacop;
     assign dcache_cacop_op       = cacop_op_reg;
     assign dcache_cacop_tagt_way = quick_sum[0];
     assign dcache_index          = quick_sum[11:4];
@@ -329,7 +330,8 @@ module exe_stage (
     assign any_excp     = if_any_ex_reg | id_any_ex_reg | mem_any_ex;
     assign stall_now    = any_excp | id_flush_reg | id_isidle_reg;
     assign exe_ready_go = is_hold | (is_fresh & (any_excp                                 //excp
-                                    | ((icache_cacop_valid | dcache_cacop_valid) & cacop_req_ok)//cacop, sucks :(
+                                    | (icache_cacop_valid & icache_cacop_req_ok)//cacop, sucks :(
+                                    | (dcache_cacop_valid & dcache_cacop_req_ok)
                                     | (mem_has_req & dcache_valid & dcache_addr_ok)       //mem, sucks :(
                                     | (~(cacop_valid_reg | mem_has_req) & alu_res_ready))); //others, optimize generation of this condition, to do :(
     assign exe_allowin  = ((is_expired & ~stall_flag) | (exe_ready_go & mem_allowin)) & ~pred_flush;
