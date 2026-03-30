@@ -36,7 +36,7 @@ module mem_stage (
     output wire         allow_mem,  //block mem_req when there is an ongoing icache_cacop, sucks :(
     output wire         allow_icacop,   //block icacop when there is an ongoing mem/dcacop, sucks :(
     output wire         allow_dcacop,   //block dcacop when there is an ongoing icacop, sucks :(
-    output wire         mem_any_ex,
+    output wire         mem_any_excp,
     output wire         ll_running,
     input  wire [`EXE_BUS_W - 1:0] exe2mem_bus,
     input  wire         exe_ready_go,
@@ -73,6 +73,7 @@ module mem_stage (
     reg  [ 1:0] mem_state;
     wire        is_expired = mem_state[0];
     wire        is_fresh   = mem_state[1];
+    reg         recovery_mode;
     wire        cacop_ok;
     reg  [31:0] ll_target_reg;
     reg         ll_running_reg;
@@ -227,6 +228,7 @@ module mem_stage (
                                     | (mem_len_reg[2] & (exe_result_reg[0] | exe_result_reg[1])));
     assign mem_tlbr     = tlbr_inst & ~direct_access & ~dmw_hit & ~tlb_found;
     assign mem_any_ex   = mem_pil | mem_pis | mem_pme | mem_ppi | mem_ale | mem_tlbr;
+    assign mem_any_excp = ~recovery_mode && mem_any_ex;
     assign mem_ex_bus   = {exe_ex_bus_reg, mem_pil, mem_pis, mem_pme, mem_ppi, mem_ale, mem_tlbr};
 //mem2wb_bus
     assign pc           = pc_reg;
@@ -273,7 +275,7 @@ module mem_stage (
                         : (tlb_found & tlb_v & ((crmd_plv == 2'd3 && tlb_plv == 2'd3) || crmd_plv == 2'd0) & tlb_mat[0]));
     assign sc_valid     = (physical_addr[31:0] == ll_target_reg) & llbit;
     assign mem_invalid  = (mem_ispreld_reg & ~preld_valid) | (mem_issc_reg & ~sc_valid);
-    assign mem_cancel   = mem_has_req_reg & (mem_any_ex | mem_invalid);
+    assign mem_cancel   = (mem_has_req_reg | cacop_op2_reg) & (mem_any_ex | mem_invalid);
     assign ld_hlfwd_res = ({16{mem_mask_reg[2]}} & dcache_rdata[31:16])    //migrate to dcache?
                         | ({16{mem_mask_reg[0]}} & dcache_rdata[15:0 ]);
     assign ld_byte_res  = ({ 8{mem_mask_reg[0]}} & dcache_rdata[ 7:0 ])
@@ -299,6 +301,11 @@ module mem_stage (
                                         | (~(mem_has_req_reg | cacop_valid_reg)));              //others
     assign new_entry    = mem_allowin & exe_ready_go;
     always @(posedge clk) begin
+        if (rst || ex_flush)
+            recovery_mode <= 1'b1;
+        else if (new_entry)
+            recovery_mode <= 1'b0;
+
         if (rst || ex_flush || idle_flush)
             stall_flag <= 1'b0;
         else if (is_fresh && stall_now)

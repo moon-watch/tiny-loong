@@ -268,9 +268,10 @@ module dcache_block (
                     end
                 rdlookup: begin
                     target_way_reg <= cacop_accepted ? hit_way : target_way;
-                    if (mem_cancel)
+                    if (mem_cancel) begin
+                        cacop_accepted <= 1'b0;
                         cache_state <= idle;
-                    else
+                    end else
                         if (hit) begin
                             if (cacop_accepted) begin
                                 v_value[hit_way][index_buf] <= 1'b0;

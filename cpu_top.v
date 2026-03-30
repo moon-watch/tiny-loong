@@ -795,7 +795,7 @@ wire [ 7:0] hw_int_in = intrpt;
         .allow_mem     (allow_mem     ),
         .allow_icacop  (allow_icacop  ),
         .allow_dcacop  (allow_dcacop  ),
-        .mem_any_ex    (mem_any_ex    ),
+        .mem_any_excp  (mem_any_ex    ),
         .ll_running    (ll_running    ),
         .wb_need_tlb   (wb_need_tlb   ),
         .wb_tlb_vppn   (wb_tlb_vppn   ),
