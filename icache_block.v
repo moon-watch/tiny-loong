@@ -78,7 +78,7 @@ module icache_block (
     reg         cacop_ok_reg;
 //cpu_interface
     assign addr_ok = (is_rdlookup & hit & ~cacop_accepted) | ((is_idle | is_sucok) & ~(cacop_valid | cacop_accepted));
-    assign data_ok = (is_rdlookup & hit & ~cacop_accepted) | is_sucok;
+    assign data_ok = (is_rdlookup & hit & ~(cacop_valid | cacop_accepted)) | is_sucok;
     assign rdata   = mat ? (hit_way ? way1_rd_data[offset_buf[3:2]] : way0_rd_data[offset_buf[3:2]])
                          : wb_buf;
     assign cacop_ok      = cacop_ok_reg;

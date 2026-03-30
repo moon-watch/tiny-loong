@@ -94,6 +94,7 @@ module if_stage (
     wire [31:0] inst;
     reg  [31:0] pc_reg;
     reg  [31:0] inst_reg;
+    wire        refetch;    //due to cacop during fresh
     reg         stall_flag;
     wire        stall_now;
     wire        new_entry;
@@ -186,12 +187,13 @@ module if_stage (
     assign stall_now    = any_excp; //if doesn't need stall, can be removed, to do :(
     assign fetch_valid  = (is_expired && ~stall_flag) || ((is_fresh || is_hold) && id_allowin);
     assign mem_cancel   = is_fresh && (any_excp || cacop_valid);
+    assign refetch      = is_fresh && ~any_excp && cacop_valid;  //Sucks :(
     assign new_entry    = fetch_valid && icache_addr_ok && ~mem_cancel;
     assign inst         = is_hold ? inst_reg : icache_rdata;
     assign pc           = pc_reg;
     assign if_ready_go  = (is_fresh && (icache_data_ok || any_excp)) || is_hold;
     always @(posedge clk) begin
-        if (rst || ex_flush || pred_flush)
+        if (rst || ex_flush || pred_flush || refetch)
             recovery_mode <= 1'b1;
         else if (new_entry)
             recovery_mode <= 1'b0;
@@ -213,7 +215,7 @@ module if_stage (
         if (is_fresh && if_ready_go && ~id_allowin)
             inst_reg <= icache_rdata;
 
-        if (rst || ex_flush || pred_flush) begin
+        if (rst || ex_flush || pred_flush || refetch) begin
             if_state <= expired;
         end else begin
             case (if_state)
