@@ -403,6 +403,7 @@ wire [ 7:0] hw_int_in = intrpt;
 //TLB :)
     tlb u_tlb (
         .clk            (clk             ),
+        .rst            (rst             ),
         .s0_vppn        (tlb_s0_vppn     ),
         .s0_va_bit12    (tlb_s0_va_bit12 ),
         .s0_asid        (tlb_s0_asid     ),

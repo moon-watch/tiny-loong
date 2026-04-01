@@ -2,6 +2,7 @@ module tlb #(
     parameter TLBNUM = 16
 ) (
     input  wire                        clk,
+    input  wire                        rst,
     //if
     input  wire [                18:0] s0_vppn,
     input  wire                        s0_va_bit12,
@@ -137,7 +138,9 @@ module tlb #(
     endgenerate
 //inv
     always @(posedge clk) begin
-        if (invtlb_valid) begin
+        if (rst)
+            tlb_e <= {TLBNUM{1'b0}};
+        else if (invtlb_valid) begin
             case (invtlb_op)
                 5'h0 : tlb_e <= {TLBNUM{1'b0}};
                 5'h1 : tlb_e <= {TLBNUM{1'b0}};

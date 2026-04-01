@@ -285,7 +285,9 @@ module csr #(
     end
     //Ecode Esubcode
     always @(posedge clk) begin
-        if (wb_ex) begin
+        if (rst)
+            csr_estat_ecode <= 6'b0;
+        else if (wb_ex) begin
             csr_estat_ecode     <= wb_ecode;
             csr_estat_esubcode  <= wb_esubcode;
         end
