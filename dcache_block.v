@@ -1,6 +1,7 @@
 module dcache_block (
     input  wire        clk,
     input  wire        rst,
+    input  wire        wb_need_tlb,
     input  wire        mem_cancel,
     input  wire        mat,
     input  wire        cacop_valid,
@@ -152,8 +153,8 @@ module dcache_block (
     assign tag_index    = (is_refill | is_wrlookup | cacop_accepted) ? index_buf : index;
     assign tag_we[0]    = tag_we_reg & ~target_way_reg;
     assign tag_we[1]    = tag_we_reg & target_way_reg;
-    assign way0_hit     = (tag_rdata[0] == tag) && v_value[0][index_buf];
-    assign way1_hit     = (tag_rdata[1] == tag) && v_value[1][index_buf];
+    assign way0_hit     = (tag_rdata[0] == tag) && v_value[0][index_buf] && ~wb_need_tlb;
+    assign way1_hit     = (tag_rdata[1] == tag) && v_value[1][index_buf] && ~wb_need_tlb;
     assign hit          = (way0_hit | way1_hit) & (mat | cacop_accepted);
     assign hit_way      = way1_hit;
     //data_bank

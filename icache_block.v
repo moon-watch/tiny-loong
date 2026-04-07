@@ -5,10 +5,11 @@ module icache_block (
     input  wire        mat,
     input  wire        cacop_valid,
     output wire        cacop_req_ok,
-    input  wire [3:0]  cacop_op,
+    input  wire [ 7:0] cacop_index,
+    input  wire [ 3:0] cacop_op,
     output wire        cacop_ok,
     input  wire        cacop_target_way,
-    output wire        cacop_running,
+    input  wire [19:0] cacop_tag,
     input  wire [19:0] tag,
     input  wire [ 7:0] index,
     input  wire [ 7:0] index_buf_,
@@ -83,7 +84,6 @@ module icache_block (
                          : wb_buf;
     assign cacop_ok      = cacop_ok_reg;
     assign cacop_req_ok  = is_idle & ~cacop_accepted;
-    assign cacop_running = cacop_accepted;
 //axi
     assign axi_arvalid  = axi_arvalid_reg;
     assign axi_araddr   = mat_buf ? {tag_buf, index_buf, 4'b0000}
@@ -98,10 +98,14 @@ module icache_block (
     assign tag_index    = (is_refill | cacop_accepted) ? index_buf : index;
     assign tag_wr_en[0] = tag_we_reg & (~target_way_reg);
     assign tag_wr_en[1] = tag_we_reg &   target_way_reg ;
-    assign way0_hit     = (tag_rdata[0] == (after_rf ? tag_buf : tag)) && v_value[0][index_buf];
-    assign way1_hit     = (tag_rdata[1] == (after_rf ? tag_buf : tag)) && v_value[1][index_buf];
-    assign hit          = (way0_hit | way1_hit) & (mat | cacop_accepted);
+    assign way0_hit     = (tag_rdata[0] == tag) && v_value[0][index_buf] || (after_rf && ~target_way_reg);
+    assign way1_hit     = (tag_rdata[1] == tag) && v_value[1][index_buf] || (after_rf && target_way_reg);
+    assign hit          = (way0_hit | way1_hit) & mat;
     assign hit_way      = way1_hit;
+    assign cacop_way0_hit = (tag_rdata[0] == cacop_tag) && v_value[0][index_buf];
+    assign cacop_way1_hit = (tag_rdata[1] == cacop_tag) && v_value[1][index_buf];
+    assign cacop_hit      = (cacop_way0_hit | cacop_way1_hit) & cacop_accepted;
+    assign cacop_hit_way  = cacop_way1_hit;
     //data_bank
     assign cache_wdata  = axi_rdata;
     assign cache_index  = is_refill ? index_buf : index;
@@ -134,15 +138,15 @@ module icache_block (
                     if (!cacop_accepted)
                         if (cacop_valid) begin
                             cacop_accepted <= 1'b1;
-                            index_buf <= index;
+                            index_buf <= cacop_index;
                             if (cacop_op[0] | cacop_op[3]) begin
                                 target_way_reg <= cacop_target_way;
-                                v_value[cacop_target_way][index] <= 1'b0;
+                                v_value[cacop_target_way][cacop_index] <= 1'b0;
                                 tag_we_reg <= 1'b1;
                                 cacop_ok_reg <= 1'b1;
                             end
                             if (cacop_op[1]) begin
-                                v_value[cacop_target_way][index] <= 1'b0;
+                                v_value[cacop_target_way][cacop_index] <= 1'b0;
                                 cacop_ok_reg <= 1'b1;
                             end
                             if (cacop_op[2])
@@ -157,20 +161,18 @@ module icache_block (
                     target_way_reg <= cacop_accepted ? hit_way : target_way;
                     if (mem_cancel)
                         cache_state <= idle;
-                    else
-                        if (hit) begin
-                            if (cacop_accepted) begin
-                                cache_state <= idle;
-                                v_value[hit_way][index_buf] <= 1'b0;
-                                cacop_ok_reg <= 1'b1;
-                            end else if (valid)
-                                index_buf <= index;
-                            else
-                                cache_state <= idle;
+                    else begin
+                        if (cacop_accepted) begin
+                            cache_state <= idle;
+                            cacop_ok_reg <= 1'b1;
+                            if (cacop_hit)
+                                v_value[cacop_hit_way][index_buf] <= 1'b0;
                         end else begin
-                            if (cacop_accepted) begin
-                                cache_state <= idle;
-                                cacop_ok_reg <= 1'b1;
+                            if (hit) begin
+                                if (valid)
+                                    index_buf <= index;
+                                else
+                                    cache_state <= idle;
                             end else begin
                                 cache_state     <= refill;
                                 mat_buf         <= mat;
@@ -184,6 +186,7 @@ module icache_block (
                                 end
                             end
                         end
+                    end
                 end
                 refill: begin
                     case (rf_state)

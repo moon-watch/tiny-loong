@@ -53,11 +53,11 @@ module id_stage (
     wire        new_entry;
     //if2id_bus
     reg [`IF_BUS_W - 1:0] if2id_bus_reg;
-    wire [ 2:0] ras_chkpt_reg;
-    wire [31:0] inst_reg;
-    wire [31:0] pc_reg;
-    wire [ 3:0] if_ex_bus_reg;
-    wire        if_any_ex_reg;
+    wire [ 2:0] ras_chkpt_reg;  //71:69
+    wire [31:0] inst_reg;       //68:37
+    wire [31:0] pc_reg;         //36:5
+    wire [ 3:0] if_ex_bus_reg;  //4:1
+    wire        if_any_ex_reg;  //0
     //decode
     wire [15:0] offs_15_0;
     wire [ 9:0] offs_25_16;

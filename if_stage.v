@@ -9,7 +9,6 @@ module if_stage (
     output wire         cacop_req_ok,
     input  wire [ 7:0]  cacop_target_index,
     input  wire         cacop_target_way,
-    input  wire [19:0]  cacop_target_tag,
     output wire         cacop_ok,
     //flush
     input  wire         ex_flush,
@@ -65,16 +64,16 @@ module if_stage (
     input  wire         tlb_v,
     //icache
     output wire         icache_cacop_valid,
+    output wire [ 7:0]  icache_cacop_idx,
     output wire [ 3:0]  icache_cacop_op,
     input  wire         icache_cacop_req_ok,
-    input  wire         icache_cacop_running,
     output wire         icache_cacop_target_way,
     input  wire         icache_cacop_ok,
     output wire         icache_mem_cancel,
     output wire         icache_valid,
     input  wire         icache_addr_ok,
     output wire         icache_mat,
-    output wire [ 7:0]  icache_index,
+    output wire [ 7:0]  icache_index,   //critical path? : icache_rdata -> is_rtn -> rtn_target -> icache_index
     output wire [ 7:0]  icache_index_buf,
     output wire [19:0]  icache_tag,
     output wire [ 3:0]  icache_offset_buf,
@@ -128,11 +127,11 @@ module if_stage (
     reg         recovery_mode;
 //if2id_bus
     assign  if2id_bus = {
-        ras_chkpt,
-        inst,
-        pc,
-        if_ex_bus,
-        if_any_ex
+        ras_chkpt,  //71:69
+        inst,       //68:37
+        pc,         //36:5
+        if_ex_bus,  //4:1
+        if_any_ex   //0
     };
 //addr_trans
     assign {tlb_vppn, tlb_va_bit12} = pc_reg[31:12];
@@ -178,9 +177,10 @@ module if_stage (
     assign icache_mem_cancel  = mem_cancel;
     assign icache_valid       = fetch_valid;
     assign icache_mat         = physical_addr[32];
-    assign icache_index       = cacop_valid ? cacop_target_index : fetch_pc[11:4];
+    assign icache_index       = fetch_pc[11:4];
+    assign icache_cacop_idx   = cacop_target_index;
     assign icache_index_buf   = physical_addr[11:4];
-    assign icache_tag         = icache_cacop_running ? cacop_target_tag : physical_addr[31:12];
+    assign icache_tag         = physical_addr[31:12];
     assign icache_offset_buf  = physical_addr[3:0];
 //fsm
     assign any_excp     = if_any_ex;

@@ -62,7 +62,7 @@ module forwarding_unit (
 
             if (new_rd) begin
                 ptr <= {ptr[0], ptr[2:1]};
-                ptr_reg[rd] <= ptr;
+                ptr_reg[rd] <= ptr; //maybe a hold time violation
                 src_reg[rd] <= rd_src;
             end
         end

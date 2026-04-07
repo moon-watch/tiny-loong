@@ -129,6 +129,7 @@ module wb_stage (
                 mem_pil, mem_pis, mem_pme, mem_ppi, mem_ale, mem_tlbr;
     //tlb
     wire        is_invtlb, is_tlbfill, is_tlbwr, is_tlbrd, is_tlbsrch;
+    wire [ 1:0] tlb_or_csr_we;  //let synthesizer know tlb_we and tlb_csr_we are exclusive
     wire [ 3:0] tlbidx_idx_r;
     wire [ 5:0] tlbidx_ps_r;
     wire        tlbidx_ne_r;
@@ -166,26 +167,26 @@ module wb_stage (
     wire [ 9:0] asid_asid_w;
 //mem2wb_bus
     assign {
-        pc_reg,
-        forwrd_on_wb_reg,
-        forwrd_ptr_reg,
-        rj_value_reg,
-        rd_value_reg,
-        rd_addr_reg,
-        mem_isll_reg,
-        tlb_inst_reg,
-        id_isidle_reg,
-        id_isertn_reg,
-        id_flush_reg,
-        gr_we_reg,
-        wb_src_reg,
-        csr_we_reg,
-        csr_nomask_reg,
-        mem_result_reg,
-        if_any_ex_reg,
-        id_any_ex_reg,
-        any_excp_reg,
-        mem2wb_ex_bus_reg
+        pc_reg,             //172:141
+        forwrd_on_wb_reg,   //140
+        forwrd_ptr_reg,     //139:137
+        rj_value_reg,       //136:105
+        rd_value_reg,       //104:73
+        rd_addr_reg,        //72:68
+        mem_isll_reg,       //67
+        tlb_inst_reg,       //66:62
+        id_isidle_reg,      //61
+        id_isertn_reg,      //60
+        id_flush_reg,       //59
+        gr_we_reg,          //58
+        wb_src_reg,         //57:53
+        csr_we_reg,         //52
+        csr_nomask_reg,     //51
+        mem_result_reg,     //50:19
+        if_any_ex_reg,      //18
+        id_any_ex_reg,      //17
+        any_excp_reg,       //16
+        mem2wb_ex_bus_reg   //15:0
     } = mem2wb_bus_reg;
 //forward
     assign forwrd_we  = forwrd_on_wb_reg & is_fresh;
@@ -238,7 +239,9 @@ module wb_stage (
     assign csr_wvalue = rd_value_reg;
 //tlb   migrate to csr, to do :(
     assign {is_invtlb, is_tlbfill, is_tlbwr, is_tlbrd, is_tlbsrch} = tlb_inst_reg;
-    assign tlb_csr_we   = ~any_excp_reg & is_fresh & (is_tlbsrch | is_tlbrd);
+    assign tlb_or_csr_we[0] = ~tlb_or_csr_we[1] && (is_tlbsrch || is_tlbrd);
+    assign tlb_or_csr_we[1] = ~tlb_or_csr_we[0] && (is_tlbwr || is_tlbfill);
+    assign tlb_csr_we   = ~any_excp_reg & is_fresh & tlb_or_csr_we[0];
     assign tlb_r_index  = tlbidx_idx_r;
     //search_port
     assign wb_need_tlb  = (is_tlbsrch | is_invtlb) & ~recovery_mode;//@
@@ -315,7 +318,7 @@ module wb_stage (
     assign invtlb_valid = ~any_excp_reg & is_fresh & is_invtlb;
     assign invtlb_op    = rd_addr_reg;
     //tlbwr/tlbfill
-    assign tlb_we       = ~any_excp_reg & is_fresh & (is_tlbwr | is_tlbfill);
+    assign tlb_we       = ~any_excp_reg & is_fresh & tlb_or_csr_we[1];
     assign tlb_w_index  = ({4{is_tlbwr  }} & tlbidx_idx_r)
                         | ({4{is_tlbfill}} & rand_index);
     assign tlb_w_e      = (estate_r[21:16] == 6'h3f) ? 1'b1 : (~tlbidx_ne_r);

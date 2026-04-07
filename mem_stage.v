@@ -43,9 +43,6 @@ module mem_stage (
     output wire         mem_allowin,
     //next_stage
     input  wire         ll_finished,
-    input  wire         wb_need_tlb,
-    input  wire [18:0]  wb_tlb_vppn,
-    input  wire [ 9:0]  wb_tlb_asid,
     output wire [`MEM_BUS_W - 1:0] mem2wb_bus,
     output wire         mem_ready_go,
     input  wire         wb_allowin,
@@ -191,9 +188,9 @@ module mem_stage (
     assign forwrd_ptr = forwrd_ptr_reg;
     assign forwrd_res = mem_result;
 //tlb
-    assign tlb_vppn     = wb_need_tlb ? wb_tlb_vppn : exe_result_reg[31:13];
+    assign tlb_vppn     = exe_result_reg[31:13];
     assign tlb_va_bit12 = exe_result_reg[12];
-    assign tlb_asid     = wb_need_tlb ? wb_tlb_asid : asid_asid;
+    assign tlb_asid     = asid_asid;
 //addr_trans
     assign direct_access    = crmd_da == 1'b1 && crmd_pg == 1'b0;
     assign dmw0_hit         = (exe_result_reg[31:29] == dmw0_vseg) && ((crmd_plv == 2'd3 && dmw0_plv3 == 1'b1) || (crmd_plv == 2'd0 && dmw0_plv0 == 1'b1));
@@ -204,7 +201,7 @@ module mem_stage (
                             : {tlb_mat[0], tlb_ppn[19:9], (tlb_ps == 6'd21 ? exe_result_reg[20:12] : tlb_ppn[8:0]), exe_result_reg[11:0]};  //tlb
 //cache
     assign dcache_mat               = physical_addr[32];
-    assign dcache_tag               = wb_need_tlb ? 20'b0 : physical_addr[31:12];
+    assign dcache_tag               = physical_addr[31:12];
     assign dcache_index_buf         = exe_result_reg[11:4];
     assign dcache_offset_buf        = exe_result_reg[3:0];
     assign dcache_op_buf            = mem_st_reg;

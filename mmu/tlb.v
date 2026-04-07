@@ -16,6 +16,9 @@ module tlb #(
     output wire                        s0_d,
     output wire                        s0_v,
     //mem
+    input  wire                        wb_need_tlb,
+    input  wire [                18:0] wb_tlb_vppn,
+    input  wire [                 9:0] wb_tlb_asid,
     input  wire [                18:0] s1_vppn,
     input  wire                        s1_va_bit12,
     input  wire [                 9:0] s1_asid,
@@ -91,6 +94,8 @@ module tlb #(
     wire [TLBNUM - 1:0] match0;
     wire                s0_odd_even;
     //mem
+    wire [        18:0] final_s1_vppn;
+    wire [         9:0] final_s1_asid;
     wire [TLBNUM - 1:0] is_asid_match1;
     wire [TLBNUM - 1:0] is_vppn_match1;
     wire [TLBNUM - 1:0] match1;
@@ -112,14 +117,16 @@ module tlb #(
     assign s0_d     = s0_odd_even ? tlb_d1  [s0_index] : tlb_d0  [s0_index];
     assign s0_v     = s0_odd_even ? tlb_v1  [s0_index] : tlb_v0  [s0_index];
 //mem
+    assign final_s1_vppn = wb_need_tlb ? wb_tlb_vppn : s1_vppn;
+    assign final_s1_asid = wb_need_tlb ? wb_tlb_asid : s1_asid;
     assign match1       = is_vppn_match1 & (is_asid_match1 | is_g_set) & is_e_set;
     assign s1_found     = |match1;
     assign s1_odd_even  = tlb_ps4MB[s1_index] ? s1_vppn[8] : s1_va_bit12;
     encoder_16_4 s1_index_gen(
         .in(match1),
         .out(s1_index));
-    assign s1_ppn   = s1_odd_even ? tlb_ppn1[s1_index] : tlb_ppn0[s1_index];
-    assign s1_ps    = tlb_ps4MB[s1_index] ? 6'd21 : 6'd12;
+    assign s1_ppn   = wb_need_tlb ? 20'b0 : s1_odd_even ? tlb_ppn1[s1_index] : tlb_ppn0[s1_index];
+    assign s1_ps    = (wb_need_tlb || tlb_ps4MB[s1_index]) ? 6'd21 : 6'd12;
     assign s1_plv   = s1_odd_even ? tlb_plv1[s1_index] : tlb_plv0[s1_index];
     assign s1_mat   = s1_odd_even ? tlb_mat1[s1_index] : tlb_mat0[s1_index];
     assign s1_d     = s1_odd_even ? tlb_d1  [s1_index] : tlb_d0  [s1_index];
@@ -129,11 +136,11 @@ module tlb #(
     generate
         for (j = 0; j < TLBNUM; j = j + 1) begin : COND_GEN
             assign is_asid_match0[j] = s0_asid == tlb_asid[j];
-            assign is_asid_match1[j] = s1_asid == tlb_asid[j];
+            assign is_asid_match1[j] = final_s1_asid == tlb_asid[j];
             assign is_vppn_match0[j] = (s0_vppn[18:9] == tlb_vppn[j][18:9])
                                     && (tlb_ps4MB[j] || s0_vppn[8:0] == tlb_vppn[j][8:0]);
-            assign is_vppn_match1[j] = (s1_vppn[18:9] == tlb_vppn[j][18:9])
-                                    && (tlb_ps4MB[j] || s1_vppn[8:0] == tlb_vppn[j][8:0]);
+            assign is_vppn_match1[j] = (final_s1_vppn[18:9] == tlb_vppn[j][18:9])
+                                    && (tlb_ps4MB[j] || final_s1_vppn[8:0] == tlb_vppn[j][8:0]);
         end
     endgenerate
 //inv
