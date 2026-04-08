@@ -2,7 +2,7 @@
 
 一款实现了[LA32R](https://www.loongson.cn/uploads/images/2025032109211238668.%E9%BE%99%E6%9E%B6%E6%9E%8432%E4%BD%8D%E7%B2%BE%E7%AE%80%E7%89%88%E5%8F%82%E8%80%83%E6%89%8B%E5%86%8C_r1p04.pdf)指令集架构的单发射五级流水线处理器核，五级流水线为经典的取指，译码，执行，访存和写回。其还集成了2路组相联的指令数据分离缓存和16项的TLB以及基于BTB，PHT和RAS的简单分支预测器，在CoreMark场景下分支准确率为88.1%。处理器核对外接口为AXI，易于集成。
 
-处理器核在Pango PGL25G FPGA上可以达到45MHz，CoreMark分数为2.34 CoreMark/MHz，软件适配方面与[OpenLA500](https://gitee.com/loongson-edu/open-la500)一致。
+处理器核在Pango PGL25G FPGA上可以达到50MHz，CoreMark分数为2.34 CoreMark/MHz，软件适配方面与[OpenLA500](https://gitee.com/loongson-edu/open-la500)一致。
 
 ## 相关工具链
 
