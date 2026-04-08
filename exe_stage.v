@@ -30,6 +30,11 @@ module exe_stage (
     output wire [`EXE_BUS_W - 1:0] exe2mem_bus,
     output wire         exe_ready_go,
     input  wire         mem_allowin,
+    //tlb
+    input  wire [ 9:0]  asid_asid,
+    output wire [18:0]  tlb_vppn,
+    output wire         tlb_va_bit12,
+    output wire [ 9:0]  tlb_asid,
     //icache
     output wire         icache_cacop_valid,
     output wire [ 3:0]  icache_cacop_op,
@@ -233,6 +238,10 @@ module exe_stage (
                                 : (({3{call_type}} & (ras_chkpt_reg + 3'b1))
                                  | ({3{ret_type }} & (ras_chkpt_reg - 3'b1))
                                  | ({3{~(call_type | ret_type)}} & ras_chkpt_reg));
+//tlb
+    assign tlb_vppn     = quick_sum[31:13];
+    assign tlb_va_bit12 = quick_sum[12];
+    assign tlb_asid     = asid_asid;
 //cache
     assign cacop_req_ok = ( cacop_target_reg & icache_cacop_req_ok)
                         | (~cacop_target_reg & dcache_cacop_req_ok);

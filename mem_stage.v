@@ -10,7 +10,6 @@ module mem_stage (
     input  wire         crmd_pg,
     input  wire [ 1:0]  crmd_datm,
     input  wire [ 1:0]  crmd_plv,
-    input  wire [ 9:0]  asid_asid,
     input  wire         dmw0_plv0,
     input  wire         dmw0_plv3,
     input  wire [ 1:0]  dmw0_mat,
@@ -22,9 +21,6 @@ module mem_stage (
     input  wire [ 2:0]  dmw1_pseg,
     input  wire [ 2:0]  dmw1_vseg,
     //tlb
-    output wire [18:0]  tlb_vppn,
-    output wire         tlb_va_bit12,
-    output wire [ 9:0]  tlb_asid,
     input  wire         tlb_found,
     input  wire [19:0]  tlb_ppn,
     input  wire [ 5:0]  tlb_ps,
@@ -125,6 +121,13 @@ module mem_stage (
     wire        dmw0_hit;
     wire        dmw1_hit;
     wire        dmw_hit;
+    reg         tlb_found_reg;
+    reg  [19:0] tlb_ppn_reg;
+    reg  [ 5:0] tlb_ps_reg;
+    reg  [ 1:0] tlb_plv_reg;
+    reg  [ 1:0] tlb_mat_reg;
+    reg         tlb_d_reg;
+    reg         tlb_v_reg;
     wire [32:0] physical_addr;
     //excp
     wire        pil_inst, pis_inst, pme_inst, ppi_inst, ale_inst, tlbr_inst;
@@ -187,10 +190,6 @@ module mem_stage (
                         && ((mem_issc_reg && ~sc_valid) || dcache_data_ok); //Sucks :(
     assign forwrd_ptr = forwrd_ptr_reg;
     assign forwrd_res = mem_result;
-//tlb
-    assign tlb_vppn     = exe_result_reg[31:13];
-    assign tlb_va_bit12 = exe_result_reg[12];
-    assign tlb_asid     = asid_asid;
 //addr_trans
     assign direct_access    = crmd_da == 1'b1 && crmd_pg == 1'b0;
     assign dmw0_hit         = (exe_result_reg[31:29] == dmw0_vseg) && ((crmd_plv == 2'd3 && dmw0_plv3 == 1'b1) || (crmd_plv == 2'd0 && dmw0_plv0 == 1'b1));
@@ -198,7 +197,18 @@ module mem_stage (
     assign dmw_hit          = dmw0_hit || dmw1_hit;
     assign physical_addr    = direct_access ? {crmd_datm[0], exe_result_reg}                                                                //direct map
                             : dmw_hit ? {(dmw0_hit ? {dmw0_mat[0], dmw0_pseg} : {dmw1_mat[0], dmw1_pseg}), exe_result_reg[28:0]}            //dmw
-                            : {tlb_mat[0], tlb_ppn[19:9], (tlb_ps == 6'd21 ? exe_result_reg[20:12] : tlb_ppn[8:0]), exe_result_reg[11:0]};  //tlb
+                            : {tlb_mat_reg[0], tlb_ppn_reg[19:9], (tlb_ps_reg == 6'd21 ? exe_result_reg[20:12] : tlb_ppn_reg[8:0]), exe_result_reg[11:0]};  //tlb
+    always @(posedge clk) begin
+        if (new_entry) begin
+            tlb_found_reg   <= tlb_found;
+            tlb_ppn_reg     <= tlb_ppn;
+            tlb_ps_reg      <= tlb_ps;
+            tlb_plv_reg     <= tlb_plv;
+            tlb_mat_reg     <= tlb_mat;
+            tlb_d_reg       <= tlb_d;
+            tlb_v_reg       <= tlb_v;
+        end
+    end
 //cache
     assign dcache_mat               = physical_addr[32];
     assign dcache_tag               = physical_addr[31:12];
@@ -215,15 +225,15 @@ module mem_stage (
     assign ppi_inst     = mem_ld_reg | mem_isll_reg | mem_st_reg | mem_issc_reg | cacop_op2_reg;
     assign ale_inst     = mem_ld_reg | mem_isll_reg | mem_st_reg | mem_issc_reg;
     assign tlbr_inst    = mem_ld_reg | mem_isll_reg | mem_st_reg | mem_issc_reg | cacop_op2_reg;
-    assign mem_pil      = pil_inst & ~direct_access & ~dmw_hit & tlb_found & ~tlb_v;
-    assign mem_pis      = pis_inst & ~direct_access & ~dmw_hit & tlb_found & ~tlb_v;
-    assign mem_pme      = pme_inst & ~direct_access & ~dmw_hit & tlb_found &  tlb_v
-                        & ((crmd_plv == 2'd3 && tlb_plv == 2'd3) || crmd_plv == 2'd0) & ~tlb_d;
+    assign mem_pil      = pil_inst & ~direct_access & ~dmw_hit & tlb_found_reg & ~tlb_v_reg;
+    assign mem_pis      = pis_inst & ~direct_access & ~dmw_hit & tlb_found_reg & ~tlb_v_reg;
+    assign mem_pme      = pme_inst & ~direct_access & ~dmw_hit & tlb_found_reg &  tlb_v_reg
+                        & ((crmd_plv == 2'd3 && tlb_plv_reg == 2'd3) || crmd_plv == 2'd0) & ~tlb_d_reg;
     assign mem_ppi      = ppi_inst & ~direct_access & ~dmw_hit
-                        & tlb_found & tlb_v & (crmd_plv == 2'd3 && tlb_plv == 2'd0);
+                        & tlb_found_reg & tlb_v_reg & (crmd_plv == 2'd3 && tlb_plv_reg == 2'd0);
     assign mem_ale      = ale_inst & ((mem_len_reg[1] & exe_result_reg[0])
                                     | (mem_len_reg[2] & (exe_result_reg[0] | exe_result_reg[1])));
-    assign mem_tlbr     = tlbr_inst & ~direct_access & ~dmw_hit & ~tlb_found;
+    assign mem_tlbr     = tlbr_inst & ~direct_access & ~dmw_hit & ~tlb_found_reg;
     assign mem_any_ex   = mem_pil | mem_pis | mem_pme | mem_ppi | mem_ale | mem_tlbr;
     assign mem_any_excp = ~recovery_mode && mem_any_ex;
     assign mem_ex_bus   = {exe_ex_bus_reg, mem_pil, mem_pis, mem_pme, mem_ppi, mem_ale, mem_tlbr};
@@ -269,7 +279,7 @@ module mem_stage (
 //fsm
     assign ll_running   = ll_running_reg || (mem_isll_reg && is_fresh);
     assign preld_valid  = direct_access ? crmd_datm[0] : (dmw_hit ? (dmw0_hit ? dmw0_mat[0] : dmw1_mat[0])
-                        : (tlb_found & tlb_v & ((crmd_plv == 2'd3 && tlb_plv == 2'd3) || crmd_plv == 2'd0) & tlb_mat[0]));
+                        : (tlb_found_reg & tlb_v_reg & ((crmd_plv == 2'd3 && tlb_plv_reg == 2'd3) || crmd_plv == 2'd0) & tlb_mat_reg[0]));
     assign sc_valid     = (physical_addr[31:0] == ll_target_reg) & llbit;
     assign mem_invalid  = (mem_ispreld_reg & ~preld_valid) | (mem_issc_reg & ~sc_valid);
     assign mem_cancel   = (mem_has_req_reg | cacop_op2_reg) & (mem_any_ex | mem_invalid);
