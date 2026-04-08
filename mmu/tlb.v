@@ -127,10 +127,10 @@ module tlb #(
         .out(s1_index));
     assign s1_ppn   = wb_need_tlb ? 20'b0 : s1_odd_even ? tlb_ppn1[s1_index] : tlb_ppn0[s1_index];
     assign s1_ps    = (wb_need_tlb || tlb_ps4MB[s1_index]) ? 6'd21 : 6'd12;
-    assign s1_plv   = s1_odd_even ? tlb_plv1[s1_index] : tlb_plv0[s1_index];
-    assign s1_mat   = s1_odd_even ? tlb_mat1[s1_index] : tlb_mat0[s1_index];
-    assign s1_d     = s1_odd_even ? tlb_d1  [s1_index] : tlb_d0  [s1_index];
-    assign s1_v     = s1_odd_even ? tlb_v1  [s1_index] : tlb_v0  [s1_index];
+    assign s1_plv   = wb_need_tlb ? 2'd3 : s1_odd_even ? tlb_plv1[s1_index] : tlb_plv0[s1_index];
+    assign s1_mat   = wb_need_tlb ? 1'b0 : s1_odd_even ? tlb_mat1[s1_index] : tlb_mat0[s1_index];
+    assign s1_d     = wb_need_tlb ? 1'b1 : s1_odd_even ? tlb_d1  [s1_index] : tlb_d0  [s1_index];
+    assign s1_v     = wb_need_tlb ? 1'b1 : s1_odd_even ? tlb_v1  [s1_index] : tlb_v0  [s1_index];
 //match
     genvar j;
     generate

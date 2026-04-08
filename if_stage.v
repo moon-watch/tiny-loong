@@ -104,8 +104,16 @@ module if_stage (
     wire        dmw0_hit;
     wire        dmw1_hit;
     wire        dmw_hit;
+    reg         dmw0_hit_reg;
+    reg         dmw1_hit_reg;
     wire        direct_access;
     wire [32:0] physical_addr;
+    reg         tlb_found_reg;
+    reg  [19:0] tlb_ppn_reg;
+    reg  [ 5:0] tlb_ps_reg;
+    reg  [ 1:0] tlb_plv_reg;
+    reg  [ 1:0] tlb_mat_reg;
+    reg         tlb_v_reg;
     //excp
     wire        if_adef;
     wire        if_tlbr;
@@ -134,20 +142,32 @@ module if_stage (
         if_any_ex   //0
     };
 //addr_trans
-    assign {tlb_vppn, tlb_va_bit12} = pc_reg[31:12];
+    assign {tlb_vppn, tlb_va_bit12} = fetch_pc[31:12];
     assign tlb_asid         = asid_asid;
-    assign dmw0_hit         = (pc_reg[31:29] == dmw0_vseg) && ((crmd_plv == 2'd3 && dmw0_plv3 == 1'b1) || (crmd_plv == 2'd0 && dmw0_plv0 == 1'b1));
-    assign dmw1_hit         = (pc_reg[31:29] == dmw1_vseg) && ((crmd_plv == 2'd3 && dmw1_plv3 == 1'b1) || (crmd_plv == 2'd0 && dmw1_plv0 == 1'b1));
-    assign dmw_hit          = dmw0_hit || dmw1_hit;
+    assign dmw0_hit         = (fetch_pc[31:29] == dmw0_vseg) && ((crmd_plv == 2'd3 && dmw0_plv3 == 1'b1) || (crmd_plv == 2'd0 && dmw0_plv0 == 1'b1));
+    assign dmw1_hit         = (fetch_pc[31:29] == dmw1_vseg) && ((crmd_plv == 2'd3 && dmw1_plv3 == 1'b1) || (crmd_plv == 2'd0 && dmw1_plv0 == 1'b1));
+    assign dmw_hit          = dmw0_hit_reg || dmw1_hit_reg;
     assign direct_access    = crmd_da == 1'b1 && crmd_pg == 1'b0;
     assign physical_addr    = direct_access ? {crmd_datf[0], pc_reg}                                                        //direct map
-                            :  dmw_hit ? {(dmw0_hit ? {dmw0_mat[0], dmw0_pseg} : {dmw1_mat[0], dmw1_pseg}), pc_reg[28:0]}   //dmw
-                            : {tlb_mat[0], tlb_ppn[19:9], (tlb_ps == 6'd21 ? pc_reg[20:12] : tlb_ppn[8:0]), pc_reg[11:0]};  //tlb
+                            :  dmw_hit ? {(dmw0_hit_reg ? {dmw0_mat[0], dmw0_pseg} : {dmw1_mat[0], dmw1_pseg}), pc_reg[28:0]}   //dmw
+                            : {tlb_mat_reg[0], tlb_ppn_reg[19:9], (tlb_ps_reg == 6'd21 ? pc_reg[20:12] : tlb_ppn_reg[8:0]), pc_reg[11:0]};  //tlb
+    always @(posedge clk) begin
+        if (new_entry) begin
+            dmw0_hit_reg    <= dmw0_hit;
+            dmw1_hit_reg    <= dmw1_hit;    //mitigrate dmw caused critical path, sucks :(
+            tlb_found_reg   <= tlb_found;
+            tlb_ppn_reg     <= tlb_ppn;
+            tlb_ps_reg      <= tlb_ps;
+            tlb_plv_reg     <= tlb_plv;
+            tlb_mat_reg     <= tlb_mat;
+            tlb_v_reg       <= tlb_v;
+        end
+    end
 //excp
     assign if_adef      = pc_reg[0] | pc_reg[1];
-    assign if_tlbr      = ~direct_access && ~dmw_hit && ~tlb_found;
-    assign if_pif       = ~direct_access && ~dmw_hit &&  tlb_found && ~tlb_v;
-    assign if_ppi       = ~direct_access && ~dmw_hit &&  tlb_found &&  tlb_v && (crmd_plv == 2'd3 && tlb_plv == 2'd0);
+    assign if_tlbr      = ~direct_access && ~dmw_hit && ~tlb_found_reg;
+    assign if_pif       = ~direct_access && ~dmw_hit &&  tlb_found_reg && ~tlb_v_reg;
+    assign if_ppi       = ~direct_access && ~dmw_hit &&  tlb_found_reg &&  tlb_v_reg && (crmd_plv == 2'd3 && tlb_plv_reg == 2'd0);
     assign if_any_ex    = if_tlbr || if_pif || if_ppi || if_adef;
     assign if_ex_bus    = {if_adef, if_tlbr, if_pif, if_ppi};
 //pred
