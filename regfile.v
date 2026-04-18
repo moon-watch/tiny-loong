@@ -10,13 +10,13 @@ module regfile (
     input  wire [31:0]  wr_data
 );
     reg [31:0] reg_file [31:0];
-    assign rd_data1 = reg_file[rd_addr1];
-    assign rd_data2 = reg_file[rd_addr2];
+
+    assign rd_data1 = (rd_addr1 == 5'b0) ? 32'b0 : reg_file[rd_addr1];
+    assign rd_data2 = (rd_addr2 == 5'b0) ? 32'b0 : reg_file[rd_addr2];
+
     always @(posedge clk) begin
-        if (rst) begin
-            reg_file[0] <= 32'b0;
-        end
-        else if (wr_en && (wr_addr != 5'b0))
+        if (wr_en && (wr_addr != 5'b0)) begin
             reg_file[wr_addr] <= wr_data;
+        end
     end
 endmodule

@@ -69,7 +69,8 @@ module wb_stage (
     input  wire [63:0]  timer64_r,
     output wire         llbit_we,
     output wire         llbit_w,
-    output wire         tlb_csr_we,
+    output wire         tlbsrch_we,
+    output wire         tlbrd_we,
     output wire [31:0]  tlbidx_w,
     output wire [31:0]  tlbehi_w,
     output wire [31:0]  tlbelo0_w,
@@ -129,7 +130,6 @@ module wb_stage (
                 mem_pil, mem_pis, mem_pme, mem_ppi, mem_ale, mem_tlbr;
     //tlb
     wire        is_invtlb, is_tlbfill, is_tlbwr, is_tlbrd, is_tlbsrch;
-    wire [ 1:0] tlb_or_csr_we;  //let synthesizer know tlb_we and tlb_csr_we are exclusive
     wire [ 3:0] tlbidx_idx_r;
     wire [ 5:0] tlbidx_ps_r;
     wire        tlbidx_ne_r;
@@ -239,9 +239,8 @@ module wb_stage (
     assign csr_wvalue = rd_value_reg;
 //tlb   migrate to csr, to do :(
     assign {is_invtlb, is_tlbfill, is_tlbwr, is_tlbrd, is_tlbsrch} = tlb_inst_reg;
-    assign tlb_or_csr_we[0] = ~tlb_or_csr_we[1] && (is_tlbsrch || is_tlbrd);
-    assign tlb_or_csr_we[1] = ~tlb_or_csr_we[0] && (is_tlbwr || is_tlbfill);
-    assign tlb_csr_we   = ~any_excp_reg & is_fresh & tlb_or_csr_we[0];
+    assign tlbsrch_we   = ~any_excp_reg && is_fresh && is_tlbsrch;
+    assign tlbrd_we     = ~any_excp_reg && is_fresh && is_tlbrd;
     assign tlb_r_index  = tlbidx_idx_r;
     //search_port
     assign wb_need_tlb  = (is_tlbsrch | is_invtlb) & ~recovery_mode;//@
@@ -254,17 +253,14 @@ module wb_stage (
     assign tlbidx_idx_r = tlbidx_r[3:0];
     assign tlbidx_ps_r  = tlbidx_r[29:24];
     assign tlbidx_ne_r  = tlbidx_r[31];
-    assign tlbidx_idx_w = ({4{is_tlbsrch}} & (tlb_found ? tlb_index : tlbidx_idx_r))
-                        | ({4{is_tlbrd  }} & tlbidx_idx_r);
-    assign tlbidx_ps_w  = ({6{is_tlbsrch}} & tlbidx_ps_r)
-                        | ({6{is_tlbrd  }} & (tlb_r_e ? tlb_r_ps : 6'b0));
+    assign tlbidx_idx_w = tlb_found ? tlb_index : tlbidx_idx_r;
+    assign tlbidx_ps_w  = tlb_r_e ? tlb_r_ps : 6'b0;
     assign tlbidx_ne_w  = (is_tlbsrch & (tlb_found ? 1'b0 : 1'b1))
                         | (is_tlbrd & (tlb_r_e ? 1'b0 : 1'b1));
     assign tlbidx_w     = {tlbidx_ne_w, 1'b0, tlbidx_ps_w, 20'b0, tlbidx_idx_w};
         //tlbehi
     assign tlbehi_vppn_r = tlbehi_r[31:13];
-    assign tlbehi_vppn_w = ({19{is_tlbsrch}} & tlbehi_vppn_r)
-                         | ({19{is_tlbrd  }} & (tlb_r_e ? tlb_r_vppn : 19'b0));
+    assign tlbehi_vppn_w = tlb_r_e ? tlb_r_vppn : 19'b0;
     assign tlbehi_w      = {tlbehi_vppn_w, 13'b0};
         //tlbelo0
     assign tlbelo0_v_r      = tlbelo0_r[0];
@@ -273,18 +269,12 @@ module wb_stage (
     assign tlbelo0_mat_r    = tlbelo0_r[5:4];
     assign tlbelo0_g_r      = tlbelo0_r[6];
     assign tlbelo0_ppn_r    = tlbelo0_r[27:8];
-    assign tlbelo0_v_w      = (is_tlbsrch & tlbelo0_v_r)
-                            | (is_tlbrd   & (tlb_r_e ? tlb_r_v0 : 1'b0));
-    assign tlbelo0_d_w      = (is_tlbsrch & tlbelo0_d_r)
-                            | (is_tlbrd   & (tlb_r_e ? tlb_r_d0 : 1'b0));
-    assign tlbelo0_plv_w    = ({2{is_tlbsrch}} & tlbelo0_plv_r)
-                            | ({2{is_tlbrd  }} & (tlb_r_e ? tlb_r_plv0 : 2'b0));
-    assign tlbelo0_mat_w    = ({2{is_tlbsrch}} & tlbelo0_mat_r)
-                            | ({2{is_tlbrd  }} & (tlb_r_e ? tlb_r_mat0 : 2'b0));
-    assign tlbelo0_g_w      = (is_tlbsrch & tlbelo0_g_r)
-                            | (is_tlbrd   & (tlb_r_e ? tlb_r_g : 1'b0));
-    assign tlbelo0_ppn_w    = ({20{is_tlbsrch}} & tlbelo0_ppn_r)
-                            | ({20{is_tlbrd  }} & (tlb_r_e ? tlb_r_ppn0 : 20'b0));
+    assign tlbelo0_v_w      = tlb_r_e ? tlb_r_v0 : 1'b0;
+    assign tlbelo0_d_w      = tlb_r_e ? tlb_r_d0 : 1'b0;
+    assign tlbelo0_plv_w    = tlb_r_e ? tlb_r_plv0 : 2'b0;
+    assign tlbelo0_mat_w    = tlb_r_e ? tlb_r_mat0 : 2'b0;
+    assign tlbelo0_g_w      = tlb_r_e ? tlb_r_g : 1'b0;
+    assign tlbelo0_ppn_w    = tlb_r_e ? tlb_r_ppn0 : 20'b0;
     assign tlbelo0_w        = {4'b0, tlbelo0_ppn_w, 1'b0, tlbelo0_g_w, tlbelo0_mat_w,
                                 tlbelo0_plv_w, tlbelo0_d_w, tlbelo0_v_w};
         //tlbelo1
@@ -294,31 +284,24 @@ module wb_stage (
     assign tlbelo1_mat_r    = tlbelo1_r[5:4];
     assign tlbelo1_g_r      = tlbelo1_r[6];
     assign tlbelo1_ppn_r    = tlbelo1_r[27:8];
-    assign tlbelo1_v_w      = (is_tlbsrch & tlbelo1_v_r)
-                            | (is_tlbrd   & (tlb_r_e ? tlb_r_v1 : 1'b0));
-    assign tlbelo1_d_w      = (is_tlbsrch & tlbelo1_d_r)
-                            | (is_tlbrd   & (tlb_r_e ? tlb_r_d1 : 1'b0));
-    assign tlbelo1_plv_w    = ({2{is_tlbsrch}} & tlbelo1_plv_r)
-                            | ({2{is_tlbrd  }} & (tlb_r_e ? tlb_r_plv1 : 2'b0));
-    assign tlbelo1_mat_w    = ({2{is_tlbsrch}} & tlbelo1_mat_r)
-                            | ({2{is_tlbrd  }} & (tlb_r_e ? tlb_r_mat1 : 2'b0));
-    assign tlbelo1_g_w      = (is_tlbsrch & tlbelo1_g_r)
-                            | (is_tlbrd   & (tlb_r_e ? tlb_r_g : 1'b0));
-    assign tlbelo1_ppn_w    = ({20{is_tlbsrch}} & tlbelo1_ppn_r)
-                            | ({20{is_tlbrd  }} & (tlb_r_e ? tlb_r_ppn1 : 20'b0));
+    assign tlbelo1_v_w      = tlb_r_e ? tlb_r_v1 : 1'b0;
+    assign tlbelo1_d_w      = tlb_r_e ? tlb_r_d1 : 1'b0;
+    assign tlbelo1_plv_w    = tlb_r_e ? tlb_r_plv1 : 2'b0;
+    assign tlbelo1_mat_w    = tlb_r_e ? tlb_r_mat1 : 2'b0;
+    assign tlbelo1_g_w      = tlb_r_e ? tlb_r_g : 1'b0;
+    assign tlbelo1_ppn_w    = tlb_r_e ? tlb_r_ppn1 : 20'b0;
     assign tlbelo1_w        = {4'b0, tlbelo1_ppn_w, 1'b0, tlbelo1_g_w, tlbelo1_mat_w,
                                 tlbelo1_plv_w, tlbelo1_d_w, tlbelo1_v_w};
         //asid
     assign asid_asid_r      = asid_r[9:0];
     assign asid_asidbits_r  = asid_r[23:16];
-    assign asid_asid_w      = ({10{is_tlbsrch}} & asid_asid_r)
-                            | ({10{is_tlbrd  }} & (tlb_r_e ? tlb_r_asid : 10'b0));
+    assign asid_asid_w      = tlb_r_e ? tlb_r_asid : 10'b0;
     assign asid_w           = {8'b0, asid_asidbits_r, 6'b0, asid_asid_w};
     //invtlb
     assign invtlb_valid = ~any_excp_reg & is_fresh & is_invtlb;
     assign invtlb_op    = rd_addr_reg;
     //tlbwr/tlbfill
-    assign tlb_we       = ~any_excp_reg & is_fresh & tlb_or_csr_we[1];
+    assign tlb_we       = ~any_excp_reg && is_fresh && (is_tlbwr || is_tlbfill);
     assign tlb_w_index  = ({4{is_tlbwr  }} & tlbidx_idx_r)
                         | ({4{is_tlbfill}} & rand_index);
     assign tlb_w_e      = (estate_r[21:16] == 6'h3f) ? 1'b1 : (~tlbidx_ne_r);

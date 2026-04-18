@@ -26,7 +26,8 @@ module csr #(
     output  wire        llbit_r,
     input   wire        llbit_w,
     //tlb_csr_rw
-    input   wire        tlb_csr_we,
+    input   wire        tlbsrch_we,
+    input   wire        tlbrd_we,
     input   wire [31:0] tlbidx_w,
     input   wire [31:0] tlbehi_w,
     input   wire [31:0] tlbelo0_w,
@@ -371,17 +372,23 @@ module csr #(
     assign csr_llbctl = {29'b0, csr_llbctl_klo, 1'b0, llbit};
 //TLBIDX
     always @(posedge clk) begin
-        if (csr_we & csr_num == `CSR_TLBIDX) begin
+        if (csr_we & csr_num == `CSR_TLBIDX)
             csr_tlbidx_index <= csr_wmask[`CSR_TLBIDX_INDEX] & csr_wvalue[`CSR_TLBIDX_INDEX]
                              | ~csr_wmask[`CSR_TLBIDX_INDEX] & csr_tlbidx_index;
-            csr_tlbidx_ps    <= csr_wmask[`CSR_TLBIDX_PS] & csr_wvalue[`CSR_TLBIDX_PS]
-                             | ~csr_wmask[`CSR_TLBIDX_PS] & csr_tlbidx_ps;
+        else if (tlbsrch_we)
+            csr_tlbidx_index <= tlbidx_w[`CSR_TLBIDX_INDEX];
+
+        if (csr_we & csr_num == `CSR_TLBIDX)
             csr_tlbidx_ne    <= csr_wmask[`CSR_TLBIDX_NE] & csr_wvalue[`CSR_TLBIDX_NE]
                              | ~csr_wmask[`CSR_TLBIDX_NE] & csr_tlbidx_ne;
-        end else if (tlb_csr_we) begin
-            csr_tlbidx_index <= tlbidx_w[`CSR_TLBIDX_INDEX];
-            csr_tlbidx_ps    <= tlbidx_w[`CSR_TLBIDX_PS];
+        else if (tlbsrch_we || tlbrd_we)
             csr_tlbidx_ne    <= tlbidx_w[`CSR_TLBIDX_NE];
+
+        if (csr_we & csr_num == `CSR_TLBIDX) begin
+            csr_tlbidx_ps    <= csr_wmask[`CSR_TLBIDX_PS] & csr_wvalue[`CSR_TLBIDX_PS]
+                             | ~csr_wmask[`CSR_TLBIDX_PS] & csr_tlbidx_ps;
+        end else if (tlbrd_we) begin
+            csr_tlbidx_ps    <= tlbidx_w[`CSR_TLBIDX_PS];
         end
     end
     assign csr_tlbidx = {csr_tlbidx_ne, 1'b0, csr_tlbidx_ps, 20'b0, csr_tlbidx_index};
@@ -395,7 +402,7 @@ module csr #(
     always @(posedge clk) begin
         if (wb_ex & wb_ex_pg_err)
             csr_tlbehi_vppn <= wb_vaddr[31:13];
-        else if (tlb_csr_we)
+        else if (tlbrd_we)
             csr_tlbehi_vppn <= tlbehi_w[`CSR_TLBEHI_VPPN];
         else if (csr_we && csr_num == `CSR_TLBEHI)
             csr_tlbehi_vppn <= csr_wmask[`CSR_TLBEHI_VPPN] & csr_wvalue[`CSR_TLBEHI_VPPN]
@@ -404,7 +411,7 @@ module csr #(
     assign csr_tlbehi = {csr_tlbehi_vppn, 13'b0};
 //TLBELO0
     always @(posedge clk) begin
-        if (tlb_csr_we) begin
+        if (tlbrd_we) begin
             csr_tlbelo0_v   <= tlbelo0_w[`CSR_TLBELO_V];
             csr_tlbelo0_d   <= tlbelo0_w[`CSR_TLBELO_D];
             csr_tlbelo0_plv <= tlbelo0_w[`CSR_TLBELO_PLV];
@@ -430,7 +437,7 @@ module csr #(
                              , csr_tlbelo0_plv, csr_tlbelo0_d, csr_tlbelo0_v};
 //TLBELO1
     always @(posedge clk) begin
-        if (tlb_csr_we) begin
+        if (tlbrd_we) begin
             csr_tlbelo1_v   <= tlbelo1_w[`CSR_TLBELO_V];
             csr_tlbelo1_d   <= tlbelo1_w[`CSR_TLBELO_D];
             csr_tlbelo1_plv <= tlbelo1_w[`CSR_TLBELO_PLV];
@@ -456,7 +463,7 @@ module csr #(
                              , csr_tlbelo1_plv, csr_tlbelo1_d, csr_tlbelo1_v};
 //ASID
     always @(posedge clk) begin
-        if (tlb_csr_we)
+        if (tlbrd_we)
             csr_asid_asid <= asid_w[`CSR_ASID_ASID];
         else if (csr_we && csr_num == `CSR_ASID)
             csr_asid_asid <= csr_wmask[`CSR_ASID_ASID] & csr_wvalue[`CSR_ASID_ASID]
