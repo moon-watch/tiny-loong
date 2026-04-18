@@ -139,16 +139,15 @@ module icache_block (
                         if (cacop_valid) begin
                             cacop_accepted <= 1'b1;
                             index_buf <= cacop_index;
+                            if (cacop_op[0] | cacop_op[3] | cacop_op[1])
+                                v_value[cacop_target_way][cacop_index] <= 1'b0;
                             if (cacop_op[0] | cacop_op[3]) begin
                                 target_way_reg <= cacop_target_way;
-                                v_value[cacop_target_way][cacop_index] <= 1'b0;
                                 tag_we_reg <= 1'b1;
                                 cacop_ok_reg <= 1'b1;
                             end
-                            if (cacop_op[1]) begin
-                                v_value[cacop_target_way][cacop_index] <= 1'b0;
+                            if (cacop_op[1])
                                 cacop_ok_reg <= 1'b1;
-                            end
                             if (cacop_op[2])
                                 cache_state <= rdlookup;
                         end else if (valid) begin

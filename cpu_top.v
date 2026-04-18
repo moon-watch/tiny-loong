@@ -279,7 +279,8 @@ wire [ 7:0] hw_int_in = intrpt;
     wire [31:0]  csr_wvalue;
     wire         llbit_we;
     wire         llbit_w;
-    wire         tlb_csr_we;
+    wire         tlbsrch_we;
+    wire         tlbrd_we;
     wire [31:0]  tlbidx_w;
     wire [31:0]  tlbehi_w;
     wire [31:0]  tlbelo0_w;
@@ -892,7 +893,8 @@ wire [ 7:0] hw_int_in = intrpt;
         .timer64_r       (timer64_r       ),
         .llbit_we        (llbit_we        ),
         .llbit_w         (llbit_w         ),
-        .tlb_csr_we      (tlb_csr_we      ),
+        .tlbsrch_we      (tlbsrch_we      ),
+        .tlbrd_we        (tlbrd_we        ),
         .tlbidx_w        (tlbidx_w        ),
         .tlbehi_w        (tlbehi_w        ),
         .tlbelo0_w       (tlbelo0_w       ),
@@ -938,7 +940,8 @@ wire [ 7:0] hw_int_in = intrpt;
         .llbit_we    (llbit_we   ),
         .llbit_r     (llbit_r    ),
         .llbit_w     (llbit_w    ),
-        .tlb_csr_we  (tlb_csr_we ),
+        .tlbsrch_we  (tlbsrch_we ),
+        .tlbrd_we    (tlbrd_we   ),
         .tlbidx_w    (tlbidx_w   ),
         .tlbehi_w    (tlbehi_w   ),
         .tlbelo0_w   (tlbelo0_w  ),
