@@ -132,6 +132,7 @@ module mem_stage (
     //excp
     wire        pil_inst, pis_inst, pme_inst, ppi_inst, ale_inst, tlbr_inst;
     wire        mem_pil, mem_pis, mem_pme, mem_ppi, mem_ale, mem_tlbr;
+    wire        mem_any_ex;
     wire [15:0] mem_ex_bus;
     //mem2wb_bus
     wire [31:0] pc;

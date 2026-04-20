@@ -121,7 +121,6 @@ module exe_stage (
     wire [31:0] btb_target;
     wire [ 2:0] btb_type;
     //cache
-    wire        cacop_req_ok;
     wire        mem_valid;
     wire [ 3:0] byte_mask;
     wire [ 3:0] hlfwd_mask;
@@ -243,8 +242,6 @@ module exe_stage (
     assign tlb_va_bit12 = quick_sum[12];
     assign tlb_asid     = asid_asid;
 //cache
-    assign cacop_req_ok = ( cacop_target_reg & icache_cacop_req_ok)
-                        | (~cacop_target_reg & dcache_cacop_req_ok);
     assign icache_cacop_valid    = is_fresh && cacop_valid_reg && ~any_excp && cacop_target_reg && allow_icacop;
     assign icache_cacop_op       = cacop_op_reg;
     assign icache_cacop_tagt_idx = quick_sum[11:4];

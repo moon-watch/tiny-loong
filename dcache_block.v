@@ -65,14 +65,12 @@ module dcache_block (
     localparam  rfidle      = 1'b0;
     localparam  rf          = 1'b1;
     reg         rf_state;
-    wire        is_rf       = rf_state;
     reg         rf_req_reg;
     reg  [ 3:0] rf_cnt_reg;
     localparam  wbidle      = 2'b00;
     localparam  wb          = 2'b01;
     localparam  recevb      = 2'b11;
     reg  [ 1:0] wb_state;
-    wire        is_recevb   = wb_state[1];
     reg         wb_req_reg;
     reg  [ 3:0] wb_cnt_reg;
     //axi

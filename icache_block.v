@@ -64,6 +64,10 @@ module icache_block (
     wire        way1_hit;
     wire        hit;
     wire        hit_way;
+    wire        cacop_way0_hit;
+    wire        cacop_way1_hit;
+    wire        cacop_hit;
+    wire        cacop_hit_way;
     wire [31:0] cache_wdata;
     wire [ 7:0] cache_index;
     wire [ 3:0] cache_wr_en [1:0];

@@ -173,10 +173,6 @@ wire [ 7:0] hw_int_in = intrpt;
     wire        blocked2;
     wire        forwrd_ready2;
     wire [31:0] forwrd_res2;
-    //if2id_buf
-    wire        id_buf_allowin;
-    wire [`IF_BUS_W - 1:0] if2id_buf_bus;
-    wire        if_buf_ready_go;
     //id_stage
     wire         id_allowin;
     wire [4:0]   rj_addr;
