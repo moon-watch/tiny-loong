@@ -33,12 +33,10 @@ module mem_stage (
     output wire         allow_icacop,   //block icacop when there is an ongoing mem/dcacop, sucks :(
     output wire         allow_dcacop,   //block dcacop when there is an ongoing icacop, sucks :(
     output wire         mem_any_excp,
-    output wire         ll_running,
     input  wire [`EXE_BUS_W - 1:0] exe2mem_bus,
     input  wire         exe_ready_go,
     output wire         mem_allowin,
     //next_stage
-    input  wire         ll_finished,
     output wire [`MEM_BUS_W - 1:0] mem2wb_bus,
     output wire         mem_ready_go,
     input  wire         wb_allowin,
@@ -69,7 +67,6 @@ module mem_stage (
     reg         recovery_mode;
     wire        cacop_ok;
     reg  [31:0] ll_target_reg;
-    reg         ll_running_reg;
     wire        preld_valid;
     wire        sc_valid;
     wire        mem_invalid;
@@ -278,7 +275,6 @@ module mem_stage (
         mem_ex_bus
     };
 //fsm
-    assign ll_running   = ll_running_reg || (mem_isll_reg && is_fresh);
     assign preld_valid  = direct_access ? crmd_datm[0] : (dmw_hit ? (dmw0_hit ? dmw0_mat[0] : dmw1_mat[0])
                         : (tlb_found_reg & tlb_v_reg & ((crmd_plv == 2'd3 && tlb_plv_reg == 2'd3) || crmd_plv == 2'd0) & tlb_mat_reg[0]));
     assign sc_valid     = (physical_addr[31:0] == ll_target_reg) & llbit;
@@ -318,11 +314,6 @@ module mem_stage (
             stall_flag <= 1'b0;
         else if (is_fresh && stall_now)
             stall_flag <= 1'b1;
-
-        if (rst || ex_flush || ll_finished)
-            ll_running_reg <= 1'b0;
-        else if (mem_ready_go && wb_allowin && mem_isll_reg)
-            ll_running_reg <= 1'b1;
 
         if (mem_ready_go && wb_allowin && mem_isll_reg)
             ll_target_reg <= physical_addr[31:0];

@@ -91,7 +91,7 @@ wire [ 7:0] hw_int_in = intrpt;
     wire        tlb_s0_found;
     wire [ 3:0] tlb_s0_index;
     wire [19:0] tlb_s0_ppn;
-    wire [ 5:0] tlb_s0_ps;
+    wire        tlb_s0_ps;
     wire [ 1:0] tlb_s0_plv;
     wire [ 1:0] tlb_s0_mat;
     wire        tlb_s0_d;
@@ -224,7 +224,6 @@ wire [ 7:0] hw_int_in = intrpt;
     wire         allow_icacop;
     wire         allow_dcacop;
     wire         mem_any_ex;
-    wire         ll_running;
     wire [`MEM_BUS_W - 1:0] mem2wb_bus;
     wire         dcache_mat;
     wire [19:0]  dcache_tag;
@@ -748,7 +747,7 @@ wire [ 7:0] hw_int_in = intrpt;
         .allow_icacop            (allow_icacop           ),
         .allow_dcacop            (allow_dcacop           ),
         .mem_any_ex              (mem_any_ex             ),
-        .ll_running              (ll_running             ),
+        .ll_finished             (ll_finished            ),
         .icache_cacop_valid      (exe2if_cacop_valid     ),
         .icache_cacop_op         (exe2if_cacop_op        ),
         .icache_cacop_req_ok     (if2exe_cacop_req_ok    ),
@@ -803,8 +802,6 @@ wire [ 7:0] hw_int_in = intrpt;
         .allow_icacop  (allow_icacop  ),
         .allow_dcacop  (allow_dcacop  ),
         .mem_any_excp  (mem_any_ex    ),
-        .ll_running    (ll_running    ),
-        .ll_finished   (ll_finished   ),
         .mem_ready_go  (mem_ready_go  ),
         .wb_allowin    (wb_allowin    ),
         .mem2wb_bus    (mem2wb_bus    ),

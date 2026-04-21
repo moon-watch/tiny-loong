@@ -10,7 +10,7 @@ module tlb #(
     output wire                        s0_found,
     output wire [$clog2(TLBNUM) - 1:0] s0_index,
     output wire [                19:0] s0_ppn,
-    output wire [                 5:0] s0_ps,
+    output wire                        s0_ps,
     output wire [                 1:0] s0_plv,
     output wire [                 1:0] s0_mat,
     output wire                        s0_d,
@@ -111,7 +111,7 @@ module tlb #(
         .in(match0),
         .out(s0_index));
     assign s0_ppn   = s0_odd_even ? tlb_ppn1[s0_index] : tlb_ppn0[s0_index];
-    assign s0_ps    = tlb_ps4MB[s0_index] ? 6'd21 : 6'd12;
+    assign s0_ps    = tlb_ps4MB[s0_index];
     assign s0_plv   = s0_odd_even ? tlb_plv1[s0_index] : tlb_plv0[s0_index];
     assign s0_mat   = s0_odd_even ? tlb_mat1[s0_index] : tlb_mat0[s0_index];
     assign s0_d     = s0_odd_even ? tlb_d1  [s0_index] : tlb_d0  [s0_index];

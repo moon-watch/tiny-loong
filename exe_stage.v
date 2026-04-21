@@ -26,7 +26,7 @@ module exe_stage (
     input  wire         allow_icacop,
     input  wire         allow_dcacop,
     input  wire         mem_any_ex,
-    input  wire         ll_running,
+    input  wire         ll_finished,
     output wire [`EXE_BUS_W - 1:0] exe2mem_bus,
     output wire         exe_ready_go,
     input  wire         mem_allowin,
@@ -66,6 +66,7 @@ module exe_stage (
     wire        is_expired  = exe_state[0];
     wire        is_fresh    = exe_state[1];
     wire        is_hold     = exe_state[2];
+    reg         ll_running_reg;
     reg         recovery_mode;
     wire        any_excp;
     wire        stall_now;
@@ -125,37 +126,37 @@ module exe_stage (
     wire [ 3:0] byte_mask;
     wire [ 3:0] hlfwd_mask;
     //exe2mem_bus
-    wire [31:0] pc;
-    wire [31:0] exe_result;
-    wire        forwrd_on_mem;
-    wire        forwrd_on_wb;
-    wire [31:0] rj_value;
-    wire [31:0] rd_value;
-    wire [ 4:0] rd_addr;
-    wire        mem_ld;
-    wire        mem_st;
-    wire        mem_isll;
-    wire        mem_issc;
-    wire        mem_ispreld;
-    wire        mem_usign;
-    wire [ 3:0] mem_mask;
-    wire [ 2:0] mem_len;
-    wire        mem_has_req;
-    wire        mem_res_ld;
-    wire        cacop_valid;
-    wire        cacop_target;
-    wire        cacop_op2;
-    wire [ 4:0] tlb_inst;
-    wire        id_isidle;
-    wire        id_isertn;
-    wire        id_flush;
-    wire        gr_we;
-    wire [ 4:0] wb_src;
-    wire        csr_we;
-    wire        csr_nomask;
-    wire        if_any_ex;
-    wire        id_any_ex;
-    wire [ 9:0] exe_ex_bus;
+    wire [31:0] pc;             //183:152
+    wire [31:0] exe_result;     //151:120
+    wire        forwrd_on_mem;  //119
+    wire        forwrd_on_wb;   //118
+    wire [31:0] rj_value;       //114:83
+    wire [31:0] rd_value;       //82:51
+    wire [ 4:0] rd_addr;        //50:46
+    wire        mem_ld;         //45
+    wire        mem_st;         //44
+    wire        mem_isll;       //43
+    wire        mem_issc;       //42
+    wire        mem_ispreld;    //41
+    wire        mem_usign;      //40
+    wire [ 3:0] mem_mask;       //39:36
+    wire [ 2:0] mem_len;        //35:33
+    wire        mem_has_req;    //32
+    wire        mem_res_ld;     //31
+    wire        cacop_valid;    //30
+    wire        cacop_target;   //29
+    wire        cacop_op2;      //28
+    wire [ 4:0] tlb_inst;       //27:23
+    wire        id_isidle;      //22
+    wire        id_isertn;      //21
+    wire        id_flush;       //20
+    wire        gr_we;          //19
+    wire [ 4:0] wb_src;         //18:14
+    wire        csr_we;         //13
+    wire        csr_nomask;     //12
+    wire        if_any_ex;      //11
+    wire        id_any_ex;      //10
+    wire [ 9:0] exe_ex_bus;     //9:0
     //alu
     wire [31:0] alu_src1;
     wire [31:0] alu_src2;
@@ -251,7 +252,7 @@ module exe_stage (
     assign dcache_cacop_tagt_way = quick_sum[0];
     assign dcache_index          = quick_sum[11:4];
     assign dcache_op             = mem_st_reg;  //1: store, 0: load
-    assign mem_valid             = ((mem_isll_reg | mem_issc_reg) & ~ll_running)
+    assign mem_valid             = ((mem_isll_reg | mem_issc_reg) & ~ll_running_reg)
                                  | mem_ld_reg | mem_st_reg | mem_ispreld_reg;
     assign dcache_valid          = is_fresh & allow_mem & mem_valid & ~any_excp;
     assign dcache_wdata          = ({32{mem_len_reg[0] &  byte_mask[0]}} & {24'b0, rd_value_reg[7:0]})    //migrate to dcache?
@@ -343,6 +344,11 @@ module exe_stage (
     assign exe_allowin  = ((is_expired & ~stall_flag) | (exe_ready_go & mem_allowin)) & ~pred_flush;
     assign new_entry    = id_ready_go & exe_allowin;
     always @(posedge clk) begin
+        if (rst || ex_flush || ll_finished)
+            ll_running_reg <= 1'b0;
+        else if (exe_ready_go && mem_allowin && mem_isll_reg)
+            ll_running_reg <= 1'b1;
+
         if (rst || ex_flush || pred_flush)
             recovery_mode <= 1'b1;
         else if (new_entry)

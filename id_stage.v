@@ -430,6 +430,7 @@ module id_stage (
                         | inst_st_b
                         | inst_st_h
                         | inst_st_w
+                        | inst_sc_w
                         | inst_beq
                         | inst_bne
                         | inst_blt
