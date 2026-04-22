@@ -38,17 +38,13 @@ module id_stage (
 );
 //declaration
     //fsm
-    localparam  expired  = 3'b001;
-    localparam  fresh    = 3'b010;
-    localparam  hold     = 3'b100;
-    reg [2:0]   id_state;
+    localparam  expired  = 2'b01;
+    localparam  fresh    = 2'b10;
+    reg [1:0]   id_state;
     wire        is_expired  = id_state[0];
     wire        is_fresh    = id_state[1];
-    wire        is_hold     = id_state[2];
     wire        id_flush;
     wire        any_excp;
-    wire        stall_now;
-    reg         stall_flag;
     wire        src_ok;
     wire        new_entry;
     //if2id_bus
@@ -764,18 +760,12 @@ module id_stage (
     assign id_is_fresh  = is_fresh;
     assign id_flush     = inst_ibar | inst_tlbsrch | inst_tlbrd | inst_tlbwr | inst_tlbfill | inst_invtlb | inst_csrwr | inst_csrxchg | inst_ertn;
     assign any_excp     = if_any_ex_reg | id_any_ex;
-    assign stall_now    = any_excp | id_flush;  //id doesn't need stall, can be removed, to do :(
     assign src_ok       = (need_rj    ? (rj_blocked    ? forwrd_rj_rdy    : 1'b1) : 1'b1)
                         & (need_rk_rd ? (rk_rd_blocked ? forwrd_rk_rd_rdy : 1'b1) : 1'b1);
-    assign id_ready_go  = (is_hold && (stall_flag || src_ok)) || (is_fresh && (any_excp || src_ok));
-    assign id_allowin   = (is_expired && ~stall_flag) || (id_ready_go && exe_allowin);
+    assign id_ready_go  = is_fresh && (any_excp || src_ok);
+    assign id_allowin   = is_expired || (id_ready_go && exe_allowin);
     assign new_entry    = if_ready_go && id_allowin;
     always @(posedge clk) begin
-        if (rst || ex_flush || pred_flush)
-            stall_flag <= 1'b0;
-        else if (is_fresh && stall_now)
-            stall_flag <= 1'b1;
-
         if (new_entry)
             if2id_bus_reg <= if2id_bus;
 
@@ -787,20 +777,8 @@ module id_stage (
                     if (new_entry)
                         id_state <= fresh;
                 fresh:
-                    if (id_ready_go) begin
-                        if (stall_now)
-                            id_state <= exe_allowin ? expired : hold;
-                        else begin
-                            if (exe_allowin) begin
-                                if (~new_entry)
-                                    id_state <= expired;
-                            end else
-                                id_state <= hold;
-                        end
-                    end
-                hold:   //is hold state really needed?
-                    if (exe_allowin)
-                        id_state <= stall_flag ? expired : (new_entry ? fresh : expired);
+                    if (id_ready_go && exe_allowin && ~new_entry)
+                        id_state <= expired;
             endcase
         end
     end
