@@ -9,7 +9,6 @@ module if_stage (
     output wire         cacop_req_ok,
     input  wire [ 7:0]  cacop_target_index,
     input  wire         cacop_target_way,
-    output wire         cacop_ok,
     //flush
     input  wire         ex_flush,
     input  wire         ertn_flush,
@@ -68,7 +67,6 @@ module if_stage (
     output wire [ 3:0]  icache_cacop_op,
     input  wire         icache_cacop_req_ok,
     output wire         icache_cacop_target_way,
-    input  wire         icache_cacop_ok,
     output wire         icache_mem_cancel,
     output wire         icache_valid,
     input  wire         icache_addr_ok,
@@ -168,7 +166,6 @@ module if_stage (
     assign icache_cacop_op    = cacop_op;
     assign cacop_req_ok       = icache_cacop_req_ok;
     assign icache_cacop_target_way = cacop_target_way;
-    assign cacop_ok           = icache_cacop_ok;
     assign icache_mem_cancel  = mem_cancel;
     assign icache_valid       = fetch_valid;
     assign icache_mat         = direct_access ? crmd_datf[0]

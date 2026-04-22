@@ -7,11 +7,10 @@ module dcache_block (
     input  wire        cacop_valid,
     output wire        cacop_req_ok,
     input  wire [3:0]  cacop_op,
-    output wire        cacop_ok,
     input  wire        cacop_target_way,
+    output wire        cacop_running,
     input  wire [19:0] tag,
     input  wire [ 7:0] index,
-    input  wire [ 7:0] index_buf,
     input  wire [ 3:0] offset_buf,
     input  wire        op,
     input  wire        op_buf,
@@ -105,6 +104,7 @@ module dcache_block (
     wire [31:0] way0_rd_data [3:0];
     wire [31:0] way1_rd_data [3:0];
     reg  [31:0] wb_buf;
+    reg  [ 7:0] index_buf;
     //lfsr
     reg   [7:0] lfsr;
     reg         target_way_reg;
@@ -117,8 +117,8 @@ module dcache_block (
     assign data_ok = (is_hitwr & hit) | (is_rdlookup & hit & ~cacop_accepted) | is_sucok;
     assign rdata   = mat ? (hit_way ? way1_rd_data[offset_buf[3:2]] : way0_rd_data[offset_buf[3:2]])
                          : wb_buf;
-    assign cacop_ok     = cacop_ok_reg;
     assign cacop_req_ok = is_idle & ~cacop_accepted;
+    assign cacop_running = cacop_accepted;
 //axi
     assign axi_awvalid  = axi_awvalid_reg;
     assign wb_tag       = cacop_accepted ? tag_rdata[target_way_reg] : mat ? tag_buf : tag;
@@ -200,6 +200,7 @@ module dcache_block (
                     end
                     if (!cacop_accepted)
                         if (cacop_valid) begin
+                            index_buf <= index;
                             cacop_accepted <= 1'b1;
                             if (cacop_op[0] | cacop_op[3] | cacop_op[1])
                                 v_value[cacop_target_way][index] <= 1'b0;
@@ -221,6 +222,7 @@ module dcache_block (
                             if (cacop_op[2])
                                 cache_state <= rdlookup;
                         end else if (valid) begin
+                            index_buf <= index;
                             if (op) begin
                                 write_buf   <= {wdata, wstrb};
                                 cache_state <= wrlookup;
@@ -257,6 +259,7 @@ module dcache_block (
                         d_value     [hit_way][index_buf]       <= 1'b1;
                         cache_we_reg[hit_way][offset_buf[3:2]] <= 1'b0;
                         if (valid) begin
+                            index_buf <= index;
                             if (op) begin
                                 write_buf   <= {wdata, wstrb};
                                 cache_state <= wrlookup;
@@ -283,6 +286,7 @@ module dcache_block (
                                     cacop_ok_reg <= 1'b1;
                                 end
                             end else if (valid) begin
+                                index_buf <= index;
                                 if (op) begin
                                     write_buf   <= {wdata, wstrb};
                                     cache_state <= wrlookup;
@@ -391,6 +395,7 @@ module dcache_block (
                     if (cacop_valid)
                         cache_state <= idle;
                     else if (valid) begin
+                        index_buf <= index;
                         if (op) begin
                             write_buf   <= {wdata, wstrb};
                             cache_state <= wrlookup;

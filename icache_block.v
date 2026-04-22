@@ -7,7 +7,6 @@ module icache_block (
     output wire        cacop_req_ok,
     input  wire [ 7:0] cacop_index,
     input  wire [ 3:0] cacop_op,
-    output wire        cacop_ok,
     input  wire        cacop_target_way,
     input  wire [19:0] cacop_tag,
     input  wire [19:0] tag,
@@ -86,7 +85,6 @@ module icache_block (
     assign data_ok = (is_rdlookup & hit & ~cacop_accepted) | is_sucok;
     assign rdata   = mat ? (hit_way ? way1_rd_data[offset_buf[3:2]] : way0_rd_data[offset_buf[3:2]])
                          : wb_buf;
-    assign cacop_ok      = cacop_ok_reg;
     assign cacop_req_ok  = is_idle & ~cacop_accepted;
 //axi
     assign axi_arvalid  = axi_arvalid_reg;

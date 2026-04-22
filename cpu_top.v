@@ -121,7 +121,6 @@ wire [ 7:0] hw_int_in = intrpt;
     wire        tlb_r_v1;
     //icache
     wire        icache_cacop_req_ok;
-    wire        icache_cacop_ok;
     wire        icache_addr_ok;
     wire        icache_data_ok;
     wire [31:0] icache_rdata;
@@ -145,7 +144,6 @@ wire [ 7:0] hw_int_in = intrpt;
     wire       pht1_taken;
     //if_stage
     wire         if2exe_cacop_req_ok;
-    wire         if2mem_cacop_ok;
     wire         is_call;
     wire [31:0]  call_target;
     wire         is_rtn;
@@ -187,7 +185,7 @@ wire [ 7:0] hw_int_in = intrpt;
     wire [4:0]   rk_rd_query;
     //dcache
     wire        dcache_cacop_req_ok;
-    wire        dcache_cacop_ok;
+    wire        dcacop_running;
     wire        dcache_addr_ok;
     wire        dcache_data_ok;
     wire [31:0] dcache_rdata;
@@ -220,14 +218,10 @@ wire [ 7:0] hw_int_in = intrpt;
     wire [9:0]   tlb_s1_asid;
     wire         mem_allowin;
     wire         mem_ready_go;
-    wire         allow_mem;
-    wire         allow_icacop;
-    wire         allow_dcacop;
     wire         mem_any_ex;
     wire [`MEM_BUS_W - 1:0] mem2wb_bus;
     wire         dcache_mat;
     wire [19:0]  dcache_tag;
-    wire [ 7:0]  dcache_index_buf;
     wire [ 3:0]  dcache_offset_buf;
     wire         dcache_op_buf;
     wire         dcache_mem_cancel;
@@ -475,7 +469,6 @@ wire [ 7:0] hw_int_in = intrpt;
         .cacop_req_ok     (icache_cacop_req_ok    ),
         .cacop_index      (icache_cacop_idx       ),
         .cacop_op         (icache_cacop_op        ),
-        .cacop_ok         (icache_cacop_ok        ),
         .cacop_target_way (icache_cacop_target_way),
         .cacop_tag        (icache_cacop_target_tag),
         .tag              (icache_tag             ),
@@ -540,7 +533,6 @@ wire [ 7:0] hw_int_in = intrpt;
         .cacop_valid             (exe2if_cacop_valid       ),
         .cacop_op                (exe2if_cacop_op          ),
         .cacop_req_ok            (if2exe_cacop_req_ok      ),
-        .cacop_ok                (if2mem_cacop_ok          ),
         .cacop_target_index      (exe2if_cacop_tagt_index  ),
         .cacop_target_way        (exe2if_cacop_tagt_way    ),
         .ex_next_pc              (ex_next_pc               ),
@@ -594,7 +586,6 @@ wire [ 7:0] hw_int_in = intrpt;
         .icache_cacop_idx        (icache_cacop_idx         ),
         .icache_cacop_req_ok     (icache_cacop_req_ok      ),
         .icache_cacop_op         (icache_cacop_op          ),
-        .icache_cacop_ok         (icache_cacop_ok          ),
         .icache_cacop_target_way (icache_cacop_target_way  ),
         .icache_tag              (icache_tag               ),
         .icache_index            (icache_index             ),
@@ -677,11 +668,10 @@ wire [ 7:0] hw_int_in = intrpt;
         .cacop_valid      (dcache_cacop_valid     ),
         .cacop_req_ok     (dcache_cacop_req_ok    ),
         .cacop_op         (dcache_cacop_op        ),
-        .cacop_ok         (dcache_cacop_ok        ),
         .cacop_target_way (dcache_cacop_tagt_way  ),
+        .cacop_running    (dcacop_running         ),
         .tag              (dcache_tag             ),
         .index            (dcache_index           ),
-        .index_buf        (dcache_index_buf       ),
         .offset_buf       (dcache_offset_buf      ),
         .op               (dcache_op              ),
         .op_buf           (dcache_op_buf          ),
@@ -743,9 +733,6 @@ wire [ 7:0] hw_int_in = intrpt;
         .tlb_vppn      (tlb_s1_vppn            ),
         .tlb_va_bit12  (tlb_s1_va_bit12        ),
         .tlb_asid      (tlb_s1_asid            ),
-        .allow_mem               (allow_mem              ),
-        .allow_icacop            (allow_icacop           ),
-        .allow_dcacop            (allow_dcacop           ),
         .mem_any_ex              (mem_any_ex             ),
         .ll_finished             (ll_finished            ),
         .icache_cacop_valid      (exe2if_cacop_valid     ),
@@ -757,6 +744,7 @@ wire [ 7:0] hw_int_in = intrpt;
         .dcache_cacop_op         (dcache_cacop_op        ),
         .dcache_cacop_req_ok     (dcache_cacop_req_ok    ),
         .dcache_cacop_tagt_way   (dcache_cacop_tagt_way  ),
+        .dcacop_running          (dcacop_running         ),
         .dcache_index            (dcache_index           ),
         .dcache_op               (dcache_op              ),
         .dcache_valid            (dcache_valid           ),
@@ -798,23 +786,17 @@ wire [ 7:0] hw_int_in = intrpt;
         .exe2mem_bus   (exe2mem_bus   ),
         .exe_ready_go  (exe_ready_go  ),
         .mem_allowin   (mem_allowin   ),
-        .allow_mem     (allow_mem     ),
-        .allow_icacop  (allow_icacop  ),
-        .allow_dcacop  (allow_dcacop  ),
         .mem_any_excp  (mem_any_ex    ),
         .mem_ready_go  (mem_ready_go  ),
         .wb_allowin    (wb_allowin    ),
         .mem2wb_bus    (mem2wb_bus    ),
         .dcache_mat            (dcache_mat             ),
         .dcache_tag            (dcache_tag             ),
-        .dcache_index_buf      (dcache_index_buf           ),
         .dcache_offset_buf     (dcache_offset_buf          ),
         .dcache_op_buf         (dcache_op_buf              ),
         .dcache_mem_cancel     (dcache_mem_cancel),
         .dcache_data_ok(dcache_data_ok),
         .dcache_rdata  (dcache_rdata  ),
-        .dcache_cacop_ok(dcache_cacop_ok),
-        .icache_cacop_ok(if2mem_cacop_ok),
         .icache_cacop_target_tag (icache_cacop_target_tag),
         .forwrd_we     (res_we2       ),
         .forwrd_ptr    (res_ptr2      ),

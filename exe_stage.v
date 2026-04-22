@@ -22,9 +22,6 @@ module exe_stage (
     input  wire         id_ready_go,
     output wire         exe_allowin,
     //next_stage
-    input  wire         allow_mem,
-    input  wire         allow_icacop,
-    input  wire         allow_dcacop,
     input  wire         mem_any_ex,
     input  wire         ll_finished,
     output wire [`EXE_BUS_W - 1:0] exe2mem_bus,
@@ -46,6 +43,7 @@ module exe_stage (
     output wire [3:0]   dcache_cacop_op,
     input  wire         dcache_cacop_req_ok,
     output wire         dcache_cacop_tagt_way,
+    input  wire         dcacop_running,
     output wire         dcache_valid,
     input  wire         dcache_addr_ok,
     output wire         dcache_op,
@@ -126,25 +124,23 @@ module exe_stage (
     wire [ 3:0] byte_mask;
     wire [ 3:0] hlfwd_mask;
     //exe2mem_bus
-    wire [31:0] pc;             //183:152
-    wire [31:0] exe_result;     //151:120
-    wire        forwrd_on_mem;  //119
-    wire        forwrd_on_wb;   //118
-    wire [31:0] rj_value;       //114:83
-    wire [31:0] rd_value;       //82:51
-    wire [ 4:0] rd_addr;        //50:46
-    wire        mem_ld;         //45
-    wire        mem_st;         //44
-    wire        mem_isll;       //43
-    wire        mem_issc;       //42
-    wire        mem_ispreld;    //41
-    wire        mem_usign;      //40
-    wire [ 3:0] mem_mask;       //39:36
-    wire [ 2:0] mem_len;        //35:33
-    wire        mem_has_req;    //32
-    wire        mem_res_ld;     //31
-    wire        cacop_valid;    //30
-    wire        cacop_target;   //29
+    wire [31:0] pc;
+    wire [31:0] exe_result;
+    wire        forwrd_on_mem;
+    wire        forwrd_on_wb;
+    wire [31:0] rj_value;
+    wire [31:0] rd_value;
+    wire [ 4:0] rd_addr;
+    wire        mem_ld;
+    wire        mem_st;
+    wire        mem_isll;
+    wire        mem_issc;
+    wire        mem_ispreld;
+    wire        mem_usign;
+    wire [ 3:0] mem_mask;
+    wire [ 2:0] mem_len;
+    wire        mem_has_req;
+    wire        mem_res_ld;
     wire        cacop_op2;      //28
     wire [ 4:0] tlb_inst;       //27:23
     wire        id_isidle;      //22
@@ -243,18 +239,18 @@ module exe_stage (
     assign tlb_va_bit12 = quick_sum[12];
     assign tlb_asid     = asid_asid;
 //cache
-    assign icache_cacop_valid    = is_fresh && cacop_valid_reg && ~any_excp && cacop_target_reg && allow_icacop;
+    assign icache_cacop_valid    = is_fresh && ~any_excp && cacop_valid_reg && cacop_target_reg && ~dcacop_running;
     assign icache_cacop_op       = cacop_op_reg;
     assign icache_cacop_tagt_idx = quick_sum[11:4];
     assign icache_cacop_tagt_way = quick_sum[0];
-    assign dcache_cacop_valid    = is_fresh && cacop_valid_reg && ~any_excp && ~cacop_target_reg && allow_dcacop;
+    assign dcache_cacop_valid    = is_fresh && ~any_excp && cacop_valid_reg && ~cacop_target_reg;
     assign dcache_cacop_op       = cacop_op_reg;
     assign dcache_cacop_tagt_way = quick_sum[0];
     assign dcache_index          = quick_sum[11:4];
     assign dcache_op             = mem_st_reg;  //1: store, 0: load
     assign mem_valid             = ((mem_isll_reg | mem_issc_reg) & ~ll_running_reg)
                                  | mem_ld_reg | mem_st_reg | mem_ispreld_reg;
-    assign dcache_valid          = is_fresh & allow_mem & mem_valid & ~any_excp;
+    assign dcache_valid          = is_fresh & mem_valid & ~any_excp;
     assign dcache_wdata          = ({32{mem_len_reg[0] &  byte_mask[0]}} & {24'b0, rd_value_reg[7:0]})    //migrate to dcache?
                                  | ({32{mem_len_reg[0] &  byte_mask[1]}} & {16'b0, rd_value_reg[7:0], 8'b0})
                                  | ({32{mem_len_reg[0] &  byte_mask[2]}} & {8'b0, rd_value_reg[7:0], 16'b0})
@@ -285,8 +281,6 @@ module exe_stage (
     assign mem_len         = mem_len_reg;
     assign mem_has_req     = mem_ld_reg | mem_st_reg | mem_isll_reg | mem_issc_reg | mem_ispreld_reg;
     assign mem_res_ld      = mem_ld_reg | mem_isll_reg;
-    assign cacop_valid     = cacop_valid_reg;
-    assign cacop_target    = cacop_target_reg;
     assign cacop_op2       = cacop_valid_reg & cacop_op_reg[2];
     assign tlb_inst        = br_inst_reg ? 5'b0 : tlb_inst_reg;    //unmux
     assign id_isidle       = id_isidle_reg;
@@ -318,8 +312,6 @@ module exe_stage (
         mem_len,
         mem_has_req,
         mem_res_ld,
-        cacop_valid,
-        cacop_target,
         cacop_op2,
         tlb_inst,
         id_isidle,

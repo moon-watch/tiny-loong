@@ -29,9 +29,6 @@ module mem_stage (
     input  wire         tlb_d,
     input  wire         tlb_v,
     //prev_stage
-    output wire         allow_mem,  //block mem_req when there is an ongoing icache_cacop, sucks :(
-    output wire         allow_icacop,   //block icacop when there is an ongoing mem/dcacop, sucks :(
-    output wire         allow_dcacop,   //block dcacop when there is an ongoing icacop, sucks :(
     output wire         mem_any_excp,
     input  wire [`EXE_BUS_W - 1:0] exe2mem_bus,
     input  wire         exe_ready_go,
@@ -41,17 +38,14 @@ module mem_stage (
     output wire         mem_ready_go,
     input  wire         wb_allowin,
     //cache
-    input  wire         dcache_cacop_ok,
     output wire         dcache_mem_cancel,
     output wire         dcache_mat,
     output wire         dcache_op_buf,
-    output wire [ 7:0]  dcache_index_buf,
     output wire [19:0]  dcache_tag,
     output wire [ 3:0]  dcache_offset_buf,
     input  wire         dcache_data_ok,
     input  wire [31:0]  dcache_rdata,
     output wire [19:0]  icache_cacop_target_tag,
-    input  wire         icache_cacop_ok,
     //forward
     output wire         forwrd_we,
     output wire [ 2:0]  forwrd_ptr,
@@ -65,7 +59,6 @@ module mem_stage (
     wire        is_expired = mem_state[0];
     wire        is_fresh   = mem_state[1];
     reg         recovery_mode;
-    wire        cacop_ok;
     reg  [31:0] ll_target_reg;
     wire        preld_valid;
     wire        sc_valid;
@@ -99,8 +92,6 @@ module mem_stage (
     wire [ 2:0] mem_len_reg;
     wire        mem_has_req_reg;
     wire        mem_res_ld_reg;
-    wire        cacop_valid_reg;
-    wire        cacop_target_reg;
     wire        cacop_op2_reg;
     wire [ 4:0] tlb_inst_reg;
     wire        id_isidle_reg;
@@ -168,8 +159,6 @@ module mem_stage (
         mem_len_reg,
         mem_has_req_reg,
         mem_res_ld_reg,
-        cacop_valid_reg,
-        cacop_target_reg,
         cacop_op2_reg,
         tlb_inst_reg,
         id_isidle_reg,
@@ -210,12 +199,10 @@ module mem_stage (
 //cache
     assign dcache_mat               = physical_addr[32];
     assign dcache_tag               = physical_addr[31:12];
-    assign dcache_index_buf         = exe_result_reg[11:4];
     assign dcache_offset_buf        = exe_result_reg[3:0];
     assign dcache_op_buf            = mem_st_reg;
     assign dcache_mem_cancel        = mem_cancel;
     assign icache_cacop_target_tag  = physical_addr[31:12];
-    assign cacop_ok                 = icache_cacop_ok | dcache_cacop_ok;
 //excp
     assign pil_inst     = mem_ld_reg | mem_isll_reg | cacop_op2_reg;
     assign pis_inst     = mem_st_reg | mem_issc_reg;
@@ -294,15 +281,8 @@ module mem_stage (
                         | ({32{~(mem_res_ld_reg | mem_issc_reg)}} & exe_result_reg);
     assign any_excp    = if_any_ex_reg | id_any_ex_reg | mem_any_ex;
     assign stall_now   = any_excp | id_flush_reg | id_isidle_reg;
-    assign allow_mem   = (is_fresh & cacop_valid_reg & cacop_target_reg) ? icache_cacop_ok : 1'b1;   //Sucks :(
-    assign allow_icacop = (is_fresh & (mem_has_req_reg | cacop_valid_reg)) ?
-                            (mem_invalid | dcache_data_ok | cacop_ok) : 1'b1;   //Sucks :( maybe can just use mem_ready_go
-    assign allow_dcacop = (is_fresh & cacop_valid_reg & cacop_target_reg) ? icache_cacop_ok : 1'b1; //Sucks :(
     assign mem_allowin  = (is_expired & ~stall_flag) | (mem_ready_go & ~stall_now & wb_allowin);
-    assign mem_ready_go = is_fresh & (any_excp                                                  //excp
-                                        | (mem_has_req_reg & (mem_invalid | dcache_data_ok))    //mem
-                                        | (cacop_valid_reg & cacop_ok)                          //cacop
-                                        | (~(mem_has_req_reg | cacop_valid_reg)));              //others
+    assign mem_ready_go = is_fresh && (any_excp || (mem_has_req_reg ? (mem_invalid || dcache_data_ok) : 1'b1));
     assign new_entry    = mem_allowin & exe_ready_go;
     always @(posedge clk) begin
         if (rst || ex_flush)
