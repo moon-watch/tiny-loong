@@ -1,6 +1,5 @@
 module regfile (
     input  wire         clk,
-    input  wire         rst,
     input  wire [4:0]   rd_addr1,
     input  wire [4:0]   rd_addr2,
     output wire [31:0]  rd_data1,
