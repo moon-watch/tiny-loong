@@ -122,7 +122,7 @@ module dcache_block (
     assign cacop_running = cacop_accepted;
 //axi
     assign axi_awvalid  = axi_awvalid_reg;
-    assign wb_tag       = (cacop_accepted || (~cacop_accepted && mat_buf)) ? tag_rdata[target_way_reg] : tag_buf;
+    assign wb_tag       = cacop_accepted ? tag_rdata[target_way_reg] : tag_buf;
     assign ofst_32      = (cacop_accepted | mat_buf) ? 2'b00 : offset_buf[3:2];
     assign axi_awaddr   = {wb_tag, index_buf, ofst_32, 2'b00};
     assign axi_awsize   = 3'd2;
@@ -148,7 +148,7 @@ module dcache_block (
     assign wdata_buf    = write_buf[35:4];
     assign wstrb_buf    = write_buf[ 3:0];
     //tag
-    assign tag_wdata    = cacop_accepted ? 20'b0 : tag_buf;
+    assign tag_wdata    = cacop_accepted ? 20'b0 : tag;
     assign tag_index    = (is_refill | is_wrlookup | cacop_accepted) ? index_buf : index;
     assign tag_we[0]    = tag_we_reg & ~target_way_reg;
     assign tag_we[1]    = tag_we_reg & target_way_reg;
@@ -253,6 +253,12 @@ module dcache_block (
                                 wb_req_reg <= 1'b1;
                                 axi_awvalid_reg <= 1'b1;
                             end
+                            if (mat) begin
+                                if (d_value[target_way][index_buf]
+                                    & v_value[target_way][index_buf])
+                                    tag_buf <= tag_rdata[target_way];
+                            end else
+                                tag_buf <= tag;
                         end
                     end
                 hitwr:
@@ -313,6 +319,12 @@ module dcache_block (
                                     wb_req_reg      <= 1'b1;
                                     axi_awvalid_reg <= 1'b1;
                                 end
+                                if (mat) begin
+                                    if (v_value[target_way][index_buf]
+                                        & d_value[target_way][index_buf])
+                                        tag_buf <= tag_rdata[target_way];
+                                end else
+                                    tag_buf <= tag;
                             end
                         end
                 end
@@ -320,12 +332,16 @@ module dcache_block (
                     case (rf_state)
                         rfidle:
                             if (rf_req_reg & ~wb_req_reg & axi_arready) begin
+                                if (mat_buf)
+                                    tag_we_reg <= 1'b1;
                                 axi_arvalid_reg <= 1'b0;
                                 axi_rready_reg  <= 1'b1;
                                 rf_state        <= rf;
                                 rf_cnt_reg      <= 4'b0001;
                             end
-                        rf:
+                        rf: begin
+                            if (tag_we_reg)
+                                tag_we_reg <= 1'b0;
                             if (axi_rvalid) begin
                                 rf_cnt_reg <= {rf_cnt_reg[2:0], rf_cnt_reg[3]};
                                 if (!mat_buf)
@@ -340,6 +356,7 @@ module dcache_block (
                                     axi_rready_reg  <= 1'b0;
                                 end
                             end
+                        end
                     endcase
                     case (wb_state)
                         wbidle:
@@ -373,14 +390,12 @@ module dcache_block (
                                 wb_state <= wbidle;
                                 if (axi_bresp != 2'b00)
                                     axi_awvalid_reg <= 1'b1;
-                                else
+                                else begin
                                     wb_req_reg      <= 1'b0;
+                                    tag_buf <= tag;
+                                end
                             end
                     endcase
-                    if (tag_we_reg)
-                        tag_we_reg <= 1'b0;
-                    else if (mat_buf && ~cacop_accepted && ~wb_req_reg)
-                        tag_we_reg <= 1'b1;
                     if (~(rf_req_reg | wb_req_reg)) begin   //Sucks :(
                         if (cacop_accepted) begin
                             cacop_ok_reg <= 1'b1;
