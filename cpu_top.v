@@ -385,7 +385,6 @@ wire [ 7:0] hw_int_in = intrpt;
 //regfile :)
     regfile u_regfile(
         .clk      (clk       ),
-        .rst      (rst       ),
         .rd_addr1 (rj_addr   ),
         .rd_addr2 (rk_rd_addr),
         .rd_data1 (rd_data1  ),
@@ -729,10 +728,6 @@ wire [ 7:0] hw_int_in = intrpt;
         .exe2mem_bus             (exe2mem_bus            ),
         .exe_ready_go            (exe_ready_go           ),
         .mem_allowin             (mem_allowin            ),
-        .asid_asid     (asid_r[`CSR_ASID_ASID ]),
-        .tlb_vppn      (tlb_s1_vppn            ),
-        .tlb_va_bit12  (tlb_s1_va_bit12        ),
-        .tlb_asid      (tlb_s1_asid            ),
         .mem_any_ex              (mem_any_ex             ),
         .ll_finished             (ll_finished            ),
         .icache_cacop_valid      (exe2if_cacop_valid     ),
@@ -776,6 +771,10 @@ wire [ 7:0] hw_int_in = intrpt;
         .dmw1_mat      (dmw1_r[`CSR_DMW_MAT   ]),
         .dmw1_pseg     (dmw1_r[`CSR_DMW_PSEG  ]),
         .dmw1_vseg     (dmw1_r[`CSR_DMW_VSEG  ]),
+        .asid_asid     (asid_r[`CSR_ASID_ASID ]),
+        .tlb_vppn      (tlb_s1_vppn            ),
+        .tlb_va_bit12  (tlb_s1_va_bit12        ),
+        .tlb_asid      (tlb_s1_asid            ),
         .tlb_found     (tlb_s1_found           ),
         .tlb_ppn       (tlb_s1_ppn             ),
         .tlb_ps        (tlb_s1_ps              ),
@@ -985,7 +984,7 @@ wire [ 7:0] hw_int_in = intrpt;
     end
     DifftestInstrCommit DifftestInstrCommit(
         .clock              (clk                ),
-        .coreid             (`csr.csr_cpuid[8:0]),
+        .coreid             (8'h0               ),
         .index              (0                  ),
         .valid              (commit_valid       ),
         .pc                 (commit_pc          ),
@@ -1010,7 +1009,7 @@ wire [ 7:0] hw_int_in = intrpt;
     end
     DifftestExcpEvent DifftestExcpEvent(
         .clock              (clk                 ),
-        .coreid             (`csr.csr_cpuid[8:0] ),
+        .coreid             (8'h0                ),
         .excp_valid         (commit_excp_valid   ),
         .eret               (commit_eret         ),
         .intrNo             (`csr.csr_estat[12:2]),
@@ -1021,7 +1020,7 @@ wire [ 7:0] hw_int_in = intrpt;
     //trap (unused)
     DifftestTrapEvent DifftestTrapEvent(
         .clock              (clk                ),
-        .coreid             (`csr.csr_cpuid[8:0]),
+        .coreid             (8'h0               ),
         .valid              (1'b0               ),
         .code               (                   ),
         .pc                 (                   ),
@@ -1069,7 +1068,7 @@ wire [ 7:0] hw_int_in = intrpt;
     end
     DifftestStoreEvent DifftestStoreEvent(
         .clock              (clk                ),
-        .coreid             (`csr.csr_cpuid[8:0]),
+        .coreid             (8'h0               ),
         .index              (0                  ),
         .valid              ({4'b0, llbit && sc_w, st_w, st_h, st_b}),
         .storePAddr         (mem_paddr[1]       ),
@@ -1092,7 +1091,7 @@ wire [ 7:0] hw_int_in = intrpt;
     end
     DifftestLoadEvent DifftestLoadEvent(
         .clock              (clk                ),
-        .coreid             (`csr.csr_cpuid[8:0]),
+        .coreid             (8'h0               ),
         .index              (0                  ),
         .valid              ({2'b0, ld_bus[3]}  ),
         .paddr              (mem_paddr[1]       ),
@@ -1101,7 +1100,7 @@ wire [ 7:0] hw_int_in = intrpt;
     //csr
     DifftestCSRRegState DifftestCSRRegState(
         .clock              (clk                ),
-        .coreid             (`csr.csr_cpuid[8:0]),
+        .coreid             (8'h0               ),
         .crmd               (`csr.csr_crmd      ),
         .prmd               (`csr.csr_prmd      ),
         .euen               (`csr.csr_euen      ),
@@ -1133,7 +1132,7 @@ wire [ 7:0] hw_int_in = intrpt;
     //regfile
     DifftestGRegState DifftestGRegState(
         .clock              (clk                ),
-        .coreid             (`csr.csr_cpuid[8:0]),
+        .coreid             (8'h0               ),
         .gpr_0              (`regs.reg_file[0]  ),
         .gpr_1              (`regs.reg_file[1]  ),
         .gpr_2              (`regs.reg_file[2]  ),

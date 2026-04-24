@@ -27,11 +27,6 @@ module exe_stage (
     output wire [`EXE_BUS_W - 1:0] exe2mem_bus,
     output wire         exe_ready_go,
     input  wire         mem_allowin,
-    //tlb
-    input  wire [ 9:0]  asid_asid,
-    output wire [18:0]  tlb_vppn,
-    output wire         tlb_va_bit12,
-    output wire [ 9:0]  tlb_asid,
     //icache
     output wire         icache_cacop_valid,
     output wire [ 3:0]  icache_cacop_op,
@@ -124,23 +119,23 @@ module exe_stage (
     wire [ 3:0] byte_mask;
     wire [ 3:0] hlfwd_mask;
     //exe2mem_bus
-    wire [31:0] pc;
-    wire [31:0] exe_result;
-    wire        forwrd_on_mem;
-    wire        forwrd_on_wb;
-    wire [31:0] rj_value;
-    wire [31:0] rd_value;
-    wire [ 4:0] rd_addr;
-    wire        mem_ld;
-    wire        mem_st;
-    wire        mem_isll;
-    wire        mem_issc;
-    wire        mem_ispreld;
-    wire        mem_usign;
-    wire [ 3:0] mem_mask;
-    wire [ 2:0] mem_len;
-    wire        mem_has_req;
-    wire        mem_res_ld;
+    wire [31:0] pc;             //181:150
+    wire [31:0] exe_result;     //149:118
+    wire        forwrd_on_mem;  //117
+    wire        forwrd_on_wb;   //116
+    wire [31:0] rj_value;       //112:81
+    wire [31:0] rd_value;       //80:49
+    wire [ 4:0] rd_addr;        //48:44
+    wire        mem_ld;         //43
+    wire        mem_st;         //42
+    wire        mem_isll;       //41
+    wire        mem_issc;       //40
+    wire        mem_ispreld;    //39
+    wire        mem_usign;      //38
+    wire [ 3:0] mem_mask;       //37:34
+    wire [ 2:0] mem_len;        //33:31
+    wire        mem_has_req;    //30
+    wire        mem_res_ld;     //29
     wire        cacop_op2;      //28
     wire [ 4:0] tlb_inst;       //27:23
     wire        id_isidle;      //22
@@ -234,10 +229,6 @@ module exe_stage (
                                 : (({3{call_type}} & (ras_chkpt_reg + 3'b1))
                                  | ({3{ret_type }} & (ras_chkpt_reg - 3'b1))
                                  | ({3{~(call_type | ret_type)}} & ras_chkpt_reg));
-//tlb
-    assign tlb_vppn     = quick_sum[31:13];
-    assign tlb_va_bit12 = quick_sum[12];
-    assign tlb_asid     = asid_asid;
 //cache
     assign icache_cacop_valid    = is_fresh && ~any_excp && cacop_valid_reg && cacop_target_reg && ~dcacop_running;
     assign icache_cacop_op       = cacop_op_reg;
@@ -328,10 +319,10 @@ module exe_stage (
 //fsm
     assign any_excp     = if_any_ex_reg | id_any_ex_reg | mem_any_ex;
     assign stall_now    = any_excp | id_flush_reg | id_isidle_reg;
-    assign exe_ready_go = is_hold | (is_fresh & (any_excp                                 //excp
-                                    | (icache_cacop_valid & icache_cacop_req_ok)//cacop, sucks :(
+    assign exe_ready_go = is_hold | (is_fresh & (any_excp                                   //excp
+                                    | (icache_cacop_valid & icache_cacop_req_ok)            //cacop, sucks :(
                                     | (dcache_cacop_valid & dcache_cacop_req_ok)
-                                    | (mem_has_req & dcache_valid & dcache_addr_ok)       //mem, sucks :(
+                                    | (mem_has_req & dcache_valid & dcache_addr_ok)         //mem, sucks :(
                                     | (~(cacop_valid_reg | mem_has_req) & alu_res_ready))); //others, optimize generation of this condition, to do :(
     assign exe_allowin  = ((is_expired & ~stall_flag) | (exe_ready_go & mem_allowin)) & ~pred_flush;
     assign new_entry    = id_ready_go & exe_allowin;
